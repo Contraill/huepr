@@ -1,7 +1,12 @@
 {
   "addons": {
     "huepr@localhost": {
-      "updates": []
+      "updates": [
+        {
+          "version": "1.0.1",
+          "update_link": "https://github.com/Contraill/Huepr/releases/download/v1.0.1/huepr-1.0.1.xpi"
+        }
+      ]
     }
   }
 }
