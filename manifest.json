@@ -1,0 +1,50 @@
+{
+  "manifest_version": 2,
+  "name": "Huepr",
+  "version": "1.0.0",
+  "description": "Hyprland wallpaper changes inject CSS variables into whitelisted sites via Native Messaging.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "huepr@localhost",
+      "strict_min_version": "91.0",
+      "update_url": "https://raw.githubusercontent.com/Contraill/huepr/main/updates.json"
+    }
+  },
+  "permissions": [
+    "nativeMessaging",
+    "storage",
+    "tabs",
+    "<all_urls>"
+  ],
+  "background": {
+    "page": "background.html",
+    "persistent": true
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "browser_action": {
+    "default_icon": {
+      "48": "icons/icon48.png",
+      "96": "icons/icon96.png"
+    },
+    "default_popup": "popup/popup.html"
+  },
+  "options_ui": {
+    "page": "options/index.html",
+    "browser_style": false,
+    "open_in_tab": true
+  },
+  "icons": {
+    "48": "icons/icon48.png",
+    "96": "icons/icon96.png"
+  }
+}

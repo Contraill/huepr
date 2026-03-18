@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Huepr</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #1e1e2e;
+      --surface: #313244;
+      --surface2:#45475a;
+      --overlay: #585b70;
+      --text:    #cdd6f4;
+      --subtext: #a6adc8;
+      --accent:  #cba6f7;
+      --accent2: #b4befe;
+      --green:   #a6e3a1;
+      --red:     #f38ba8;
+      --border:  #45475a;
+      --r:       6px;
+      --r-sm:    4px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+      font-size: 13px;
+      line-height: 1.5;
+      width: 280px;
+      padding: 14px 16px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.02em;
+    }
+
+    .wallpaper-name {
+      font-size: 11px;
+      color: var(--subtext);
+      max-width: 160px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ── Divider ── */
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Row ── */
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .row-label {
+      font-size: 12px;
+      color: var(--subtext);
+      flex: 1;
+    }
+
+    /* ── Toggle ── */
+    .toggle {
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .toggle input { display: none; }
+
+    .toggle-track {
+      width: 28px;
+      height: 16px;
+      background: var(--surface2);
+      border-radius: 8px;
+      position: relative;
+      transition: background 0.2s;
+    }
+
+    .toggle input:checked + .toggle-track { background: var(--accent); }
+
+    .toggle-thumb {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 12px;
+      height: 12px;
+      background: var(--bg);
+      border-radius: 50%;
+      transition: left 0.15s;
+    }
+
+    .toggle input:checked + .toggle-track .toggle-thumb { left: 14px; }
+
+    /* ── Select ── */
+    select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 11px;
+      padding: 4px 7px;
+      width: 100%;
+      outline: none;
+    }
+
+    select:focus { border-color: var(--accent); }
+
+    /* ── Button ── */
+    button {
+      align-items: center;
+      border: 1px solid transparent;
+      border-radius: var(--r-sm);
+      cursor: pointer;
+      display: inline-flex;
+      font-family: inherit;
+      font-size: 12px;
+      gap: 5px;
+      justify-content: center;
+      padding: 6px 11px;
+      transition: opacity 0.1s, background 0.1s;
+      white-space: nowrap;
+      width: 100%;
+    }
+
+    button:active { opacity: 0.75; }
+
+    .btn-primary {
+      background: var(--accent);
+      color: var(--bg);
+      font-weight: 600;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border-color: var(--border);
+      color: var(--subtext);
+    }
+
+    .btn-ghost:hover { background: var(--surface2); color: var(--text); }
+
+    /* ── Toast ── */
+    #toast {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      font-size: 11px;
+      opacity: 0;
+      padding: 6px 10px;
+      pointer-events: none;
+      text-align: center;
+      transition: opacity 0.18s;
+    }
+
+    #toast.show    { opacity: 1; }
+    #toast.ok      { border-left: 3px solid var(--green); }
+    #toast.err     { border-left: 3px solid var(--red); }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <span class="logo">Huepr</span>
+  <span class="wallpaper-name" id="wallpaper-name">—</span>
+</div>
+
+<hr />
+
+<div class="row">
+  <span class="row-label">Wallpaper Hook</span>
+  <label class="toggle">
+    <input type="checkbox" id="chk-hook" />
+    <span class="toggle-track"><span class="toggle-thumb"></span></span>
+  </label>
+</div>
+
+<div id="manual-row" style="display:none">
+  <select id="theme-select"></select>
+</div>
+
+<hr />
+
+<button class="btn-primary" id="btn-add-site">Add current site</button>
+<button class="btn-ghost"   id="btn-options">Open Options</button>
+
+<div id="toast"></div>
+
+<script src="popup.js"></script>
+</body>
+</html>

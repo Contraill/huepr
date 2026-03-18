@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Huepr — Options</title>
+  <style>
+    /* ── Reset ───────────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #1e1e2e;
+      --surface:   #313244;
+      --surface2:  #45475a;
+      --overlay:   #585b70;
+      --text:      #cdd6f4;
+      --subtext:   #a6adc8;
+      --accent:    #cba6f7;
+      --accent2:   #b4befe;
+      --green:     #a6e3a1;
+      --red:       #f38ba8;
+      --yellow:    #f9e2af;
+      --border:    #45475a;
+      --r:         6px;
+      --r-sm:      4px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+      font-size: 13px;
+      line-height: 1.5;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────────────── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      gap: 0;
+      height: 48px;
+      flex-shrink: 0;
+    }
+
+    .logo {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.02em;
+      margin-right: 24px;
+    }
+
+    /* ── Tab Nav ─────────────────────────────────────────────────────────── */
+    .tab-nav {
+      display: flex;
+      height: 100%;
+      gap: 2px;
+      flex: 1;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--subtext);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 500;
+      height: 100%;
+      padding: 0 14px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    .tab-btn:hover  { color: var(--text); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+      margin-left: auto;
+    }
+
+    /* ── Layout ──────────────────────────────────────────────────────────── */
+    .tab-panel {
+      flex: 1;
+      display: none;
+      overflow: hidden;
+    }
+    .tab-panel.active { display: flex; }
+
+    .split {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Panels ──────────────────────────────────────────────────────────── */
+    .panel {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel + .panel { border-left: 1px solid var(--border); }
+
+    .panel-head {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .panel-head h2 {
+      color: var(--subtext);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      flex: 1;
+    }
+
+    .panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+    }
+
+    /* ── Add Row ─────────────────────────────────────────────────────────── */
+    .add-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .add-row input { flex: 1; min-width: 0; }
+
+    /* ── List ────────────────────────────────────────────────────────────── */
+    .item-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .item-list .empty {
+      color: var(--overlay);
+      font-size: 12px;
+      padding: 6px 4px;
+      text-align: center;
+    }
+
+    .list-item {
+      align-items: center;
+      border: 1px solid transparent;
+      border-radius: var(--r-sm);
+      cursor: pointer;
+      display: flex;
+      gap: 8px;
+      padding: 7px 10px;
+      transition: background 0.1s;
+    }
+
+    .list-item:hover { background: var(--surface); }
+
+    .list-item.selected {
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+      border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+    }
+
+    .list-item .name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .list-item.selected .name { color: var(--accent); }
+
+    .badge {
+      background: var(--surface2);
+      border-radius: 10px;
+      color: var(--subtext);
+      font-size: 10px;
+      padding: 1px 7px;
+      white-space: nowrap;
+    }
+
+    .list-item.selected .badge {
+      background: color-mix(in srgb, var(--accent) 18%, transparent);
+      color: var(--accent);
+    }
+
+    /* ── Empty / Right-panel states ─────────────────────────────────────── */
+    .empty-state {
+      align-items: center;
+      color: var(--overlay);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      height: 100%;
+      justify-content: center;
+    }
+
+    .empty-state .icon { font-size: 36px; }
+    .empty-state p { font-size: 12px; }
+
+    /* ── Tables ──────────────────────────────────────────────────────────── */
+    .section-title {
+      align-items: center;
+      color: var(--text);
+      display: flex;
+      font-size: 13px;
+      font-weight: 600;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .section-title .dot {
+      background: var(--accent);
+      border-radius: 50%;
+      flex-shrink: 0;
+      height: 7px;
+      width: 7px;
+    }
+
+    table {
+      border-collapse: collapse;
+      margin-bottom: 14px;
+      width: 100%;
+    }
+
+    thead th {
+      border-bottom: 1px solid var(--border);
+      color: var(--subtext);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      padding: 0 8px 7px;
+      text-align: left;
+      text-transform: uppercase;
+    }
+
+    tbody tr { transition: background 0.08s; }
+    tbody tr:hover { background: var(--surface); }
+
+    tbody td {
+      border-bottom: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
+      padding: 6px 8px;
+      vertical-align: middle;
+    }
+
+    tbody td:last-child { text-align: center; width: 34px; }
+
+    /* ── Chips ───────────────────────────────────────────────────────────── */
+    .chip {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      color: var(--accent2);
+      display: inline-block;
+      font-family: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+      font-size: 11px;
+      max-width: 100%;
+      overflow: hidden;
+      padding: 2px 7px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ── Color swatch ────────────────────────────────────────────────────── */
+    .swatch {
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      display: inline-block;
+      flex-shrink: 0;
+      height: 14px;
+      vertical-align: middle;
+      width: 14px;
+    }
+
+    .color-cell {
+      align-items: center;
+      display: flex;
+      gap: 7px;
+    }
+
+    /* ── Add-row for tables ──────────────────────────────────────────────── */
+    .add-table-row {
+      background: var(--surface);
+      border: 1px dashed var(--border);
+      border-radius: var(--r);
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 10px 12px;
+    }
+
+    .add-table-row .arrow { color: var(--overlay); flex-shrink: 0; }
+
+    /* ── Color picker row ────────────────────────────────────────────────── */
+    .color-row {
+      align-items: center;
+      display: flex;
+      gap: 8px;
+    }
+
+    input[type="color"] {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      cursor: pointer;
+      height: 30px;
+      padding: 2px;
+      width: 36px;
+    }
+
+    /* ── Form controls ───────────────────────────────────────────────────── */
+    input[type="text"] {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 12px;
+      outline: none;
+      padding: 5px 9px;
+      transition: border-color 0.15s;
+      width: 100%;
+    }
+
+    input[type="text"]:focus { border-color: var(--accent); }
+    input[type="text"]::placeholder { color: var(--overlay); }
+
+    .mono { font-family: "JetBrains Mono", "Fira Code", ui-monospace, monospace; }
+
+    /* ── Buttons ─────────────────────────────────────────────────────────── */
+    button {
+      align-items: center;
+      border: 1px solid transparent;
+      border-radius: var(--r-sm);
+      cursor: pointer;
+      display: inline-flex;
+      font-family: inherit;
+      font-size: 12px;
+      gap: 5px;
+      justify-content: center;
+      padding: 5px 11px;
+      transition: opacity 0.1s, background 0.1s;
+      white-space: nowrap;
+    }
+
+    button:active { opacity: 0.75; }
+
+    .btn-primary {
+      background: var(--accent);
+      color: var(--bg);
+      font-weight: 600;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border-color: var(--border);
+      color: var(--subtext);
+    }
+
+    .btn-ghost:hover { background: var(--surface2); color: var(--text); }
+
+    .btn-icon {
+      background: transparent;
+      border: none;
+      color: var(--red);
+      padding: 3px 7px;
+    }
+
+    .btn-icon:hover {
+      background: color-mix(in srgb, var(--red) 12%, transparent);
+    }
+
+    .btn-sm { font-size: 11px; padding: 4px 9px; }
+
+    /* ── Toast ───────────────────────────────────────────────────────────── */
+    #toast {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      bottom: 18px;
+      font-size: 12px;
+      opacity: 0;
+      padding: 8px 14px;
+      pointer-events: none;
+      position: fixed;
+      right: 18px;
+      transform: translateY(6px);
+      transition: opacity 0.18s, transform 0.18s;
+      z-index: 99;
+    }
+
+    #toast.show           { opacity: 1; transform: none; }
+    #toast.ok             { border-left: 3px solid var(--green); }
+    #toast.err            { border-left: 3px solid var(--red); }
+
+    /* ── Scrollbar ───────────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 2px; }
+
+    /* ── Site theme override ─────────────────────────────────────────────── */
+    .override-row {
+      align-items: center;
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .override-label {
+      color: var(--subtext);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    #site-theme-override {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 11px;
+      padding: 3px 6px;
+      flex: 1;
+      outline: none;
+    }
+
+    #site-theme-override:focus { border-color: var(--accent); }
+
+    .custom-css-row {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-bottom: 12px;
+    }
+
+    #theme-custom-css {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      color: var(--text);
+      font-family: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+      font-size: 11px;
+      line-height: 1.5;
+      min-height: 72px;
+      outline: none;
+      padding: 6px 8px;
+      resize: vertical;
+      width: 100%;
+    }
+
+    #theme-custom-css:focus { border-color: var(--accent); }
+    #theme-custom-css::placeholder { color: var(--overlay); }
+
+    /* ── Extract palette overlay ─────────────────────────────────────────── */
+    #extract-overlay {
+      background: rgba(0,0,0,0.55);
+      inset: 0;
+      position: fixed;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #extract-modal {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      display: flex;
+      flex-direction: column;
+      width: 300px;
+      overflow: hidden;
+    }
+
+    .extract-header {
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-shrink: 0;
+      gap: 8px;
+      padding: 10px 14px;
+    }
+
+    .extract-title {
+      color: var(--subtext);
+      flex: 1;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    #extract-preview {
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .extract-swatch-row {
+      align-items: center;
+      display: flex;
+      gap: 10px;
+    }
+
+    .extract-swatch {
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      flex-shrink: 0;
+      height: 28px;
+      width: 44px;
+    }
+
+    .extract-var-name {
+      color: var(--accent2);
+      font-family: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+      font-size: 11px;
+      flex: 1;
+    }
+
+    .extract-hex {
+      color: var(--subtext);
+      font-family: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+      font-size: 11px;
+    }
+
+    .extract-footer {
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      padding: 10px 14px;
+    }
+
+    /* ── Detect overlay ──────────────────────────────────────────────────── */
+    #detect-overlay {
+      background: rgba(0,0,0,0.55);
+      inset: 0;
+      position: fixed;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #detect-modal {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      display: flex;
+      flex-direction: column;
+      max-height: 70vh;
+      width: 340px;
+      overflow: hidden;
+    }
+
+    #detect-header {
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-shrink: 0;
+      gap: 8px;
+      padding: 10px 14px;
+    }
+
+    #detect-title {
+      color: var(--subtext);
+      flex: 1;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    #detect-filter-row {
+      flex-shrink: 0;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    #detect-filter { width: 100%; }
+
+    #detect-list {
+      list-style: none;
+      overflow-y: auto;
+      padding: 6px 0;
+    }
+
+    .detect-item {
+      align-items: center;
+      cursor: default;
+      display: flex;
+      gap: 8px;
+      padding: 5px 14px;
+      transition: background 0.08s;
+    }
+
+    .detect-item:hover { background: var(--surface); }
+
+    .detect-item .var-name {
+      color: var(--accent2);
+      flex: 1;
+      font-family: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+      font-size: 11px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .detect-item .btn-use {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      color: var(--subtext);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 10px;
+      padding: 2px 7px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .detect-item .btn-use:hover {
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* ── Theme swatches ──────────────────────────────────────────────────── */
+    .theme-dots {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      flex-shrink: 0;
+    }
+
+    .theme-dot {
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+      height: 8px;
+      width: 8px;
+    }
+
+    /* ── Hook controls ───────────────────────────────────────────────────── */
+    .hook-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-right: 16px;
+    }
+
+    .hook-label {
+      font-size: 11px;
+      color: var(--subtext);
+    }
+
+    .toggle {
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+    }
+
+    .toggle input { display: none; }
+
+    .toggle-track {
+      width: 28px;
+      height: 16px;
+      background: var(--surface2);
+      border-radius: 8px;
+      position: relative;
+      transition: background 0.2s;
+    }
+
+    .toggle input:checked + .toggle-track { background: var(--accent); }
+
+    .toggle-thumb {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 12px;
+      height: 12px;
+      background: var(--bg);
+      border-radius: 50%;
+      transition: left 0.15s;
+    }
+
+    .toggle input:checked + .toggle-track .toggle-thumb { left: 14px; }
+
+    #manual-theme-select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      color: var(--text);
+      font-size: 11px;
+      padding: 3px 6px;
+    }
+
+    /* ── Help tab ────────────────────────────────────────────────────────── */
+    .help-h2 {
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin: 24px 0 8px;
+    }
+
+    .help-p {
+      color: var(--subtext);
+      font-size: 13px;
+      line-height: 1.6;
+      margin-bottom: 8px;
+    }
+
+    .help-pre {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      color: var(--accent2);
+      font-family: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      margin: 8px 0 12px;
+      overflow-x: auto;
+      padding: 12px 14px;
+      white-space: pre;
+    }
+
+    .help-code {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      color: var(--accent2);
+      font-family: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+      font-size: 11px;
+      padding: 1px 5px;
+    }
+
+    .help-sep {
+      border-top: 1px solid var(--border);
+      margin-top: 24px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────────── -->
+<header>
+  <span class="logo">Huepr</span>
+
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-tab="sites">Sites &amp; Mappings</button>
+    <button class="tab-btn"        data-tab="themes">Themes</button>
+    <button class="tab-btn"        data-tab="help">Help</button>
+  </nav>
+
+  <div class="hook-controls" id="hook-controls">
+    <label class="toggle" title="Auto-apply theme on wallpaper change">
+      <input type="checkbox" id="chk-hook" />
+      <span class="toggle-track"><span class="toggle-thumb"></span></span>
+    </label>
+    <span class="hook-label">Wallpaper Hook</span>
+    <select id="manual-theme-select" style="display:none"></select>
+  </div>
+
+  <div class="header-actions">
+    <button class="btn-ghost btn-sm" id="btn-export">Export JSON</button>
+    <button class="btn-ghost btn-sm" id="btn-import">Import JSON</button>
+    <input type="file" id="import-file" accept=".json" style="display:none" />
+  </div>
+</header>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- Tab 1: Sites & Mappings                                                   -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel active" id="tab-sites">
+  <div class="split">
+
+    <!-- Left: Whitelist ───────────────────────────────────────────────────── -->
+    <div class="panel">
+      <div class="panel-head"><h2>Whitelisted Sites</h2></div>
+      <div class="panel-body">
+        <div class="add-row">
+          <input type="text" id="new-site-input" placeholder="github.com" />
+          <button class="btn-primary" id="btn-add-site" style="padding:5px 10px">+</button>
+        </div>
+        <ul class="item-list" id="site-list"></ul>
+      </div>
+    </div>
+
+    <!-- Right: Mapping table ──────────────────────────────────────────────── -->
+    <div class="panel">
+      <div class="panel-head">
+        <h2 id="mappings-head">CSS Variable Mappings</h2>
+        <button class="btn-ghost btn-sm" id="btn-detect" style="display:none" title="Scan the open tab for CSS variables">Detect</button>
+      </div>
+      <div class="panel-body" id="mappings-body">
+
+        <div class="empty-state" id="mappings-empty">
+          <div class="icon">↖</div>
+          <p>Select a site to manage its mappings</p>
+        </div>
+
+        <div id="mappings-content" style="display:none">
+          <div class="section-title">
+            <div class="dot"></div>
+            <span id="mappings-site-name"></span>
+          </div>
+          <div class="override-row">
+            <label class="override-label" for="site-theme-override">Theme override</label>
+            <select id="site-theme-override"></select>
+          </div>
+
+          <table id="mapping-table">
+            <thead>
+              <tr>
+                <th>Site CSS Variable</th>
+                <th style="width:32px; text-align:center">→</th>
+                <th>Theme Variable</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="mapping-tbody"></tbody>
+          </table>
+
+          <div class="add-table-row">
+            <input type="text" class="mono" id="new-map-site"  placeholder="--color-canvas-default" style="flex:1" />
+            <span class="arrow">→</span>
+            <input type="text" class="mono" id="new-map-theme" placeholder="--theme-bg"
+                   list="theme-var-list" style="flex:1" />
+            <button class="btn-primary btn-sm" id="btn-add-mapping">Add</button>
+          </div>
+
+          <datalist id="theme-var-list"></datalist>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- Tab 2: Themes                                                             -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-themes">
+  <div class="split">
+
+    <!-- Left: Theme list ─────────────────────────────────────────────────── -->
+    <div class="panel">
+      <div class="panel-head"><h2>Themes</h2></div>
+      <div class="panel-body">
+        <div class="add-row">
+          <input type="text" id="new-theme-name" placeholder="MyTheme" />
+          <button class="btn-primary" id="btn-add-theme" style="padding:5px 10px">+</button>
+        </div>
+        <ul class="item-list" id="theme-list"></ul>
+      </div>
+    </div>
+
+    <!-- Right: Theme variables table ─────────────────────────────────────── -->
+    <div class="panel">
+      <div class="panel-head">
+        <h2 id="theme-vars-head">Theme Variables</h2>
+        <button class="btn-ghost btn-sm" id="btn-extract" style="display:none" title="Extract palette from a wallpaper image">Extract from image</button>
+        <input type="file" id="extract-file" accept="image/*" style="display:none" />
+        <canvas id="extract-canvas" style="display:none"></canvas>
+      </div>
+      <div class="panel-body" id="theme-vars-body">
+
+        <div class="empty-state" id="theme-vars-empty">
+          <div class="icon">↖</div>
+          <p>Select a theme to edit its variables</p>
+        </div>
+
+        <div id="theme-vars-content" style="display:none">
+          <div class="section-title">
+            <div class="dot"></div>
+            <span id="theme-vars-title"></span>
+          </div>
+
+          <table id="theme-vars-table">
+            <thead>
+              <tr>
+                <th>CSS Variable</th>
+                <th>Color</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="theme-vars-tbody"></tbody>
+          </table>
+
+          <div class="add-table-row" style="flex-direction:column; align-items:stretch; gap:10px">
+            <div class="color-row">
+              <input type="text" class="mono" id="new-var-name"
+                     placeholder="--theme-custom" style="flex:1" list="theme-var-names" />
+              <input type="color" id="new-var-picker" value="#cba6f7" />
+              <input type="text" class="mono" id="new-var-hex"
+                     placeholder="#cba6f7" style="width:90px" />
+              <button class="btn-primary btn-sm" id="btn-add-var">Add</button>
+            </div>
+            <datalist id="theme-var-names">
+              <option value="--theme-bg">
+              <option value="--theme-fg">
+              <option value="--theme-accent">
+              <option value="--theme-surface">
+              <option value="--theme-border">
+              <option value="--theme-red">
+              <option value="--theme-green">
+              <option value="--theme-yellow">
+              <option value="--theme-blue">
+            </datalist>
+          </div>
+          <div class="custom-css-row">
+            <label class="override-label" for="theme-custom-css">Custom CSS</label>
+            <textarea id="theme-custom-css" placeholder="/* override hardcoded colors for this theme */&#10;path[fill='#FF0033'] { fill: var(--theme-accent) !important; }"></textarea>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- Tab 3: Help                                                               -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-help" style="overflow-y:auto">
+  <div style="padding:24px 32px;max-width:760px;margin:0 auto">
+
+    <h2 class="help-h2" style="margin-top:0">How Huepr works</h2>
+    <p class="help-p">Huepr connects your Hyprland/Caelestia wallpaper changes to your browser. When you change your wallpaper, the native host detects it and pushes the new theme name to this extension. The extension then injects CSS custom properties into whitelisted sites — no page reload needed.</p>
+    <p class="help-p">Flow:</p>
+    <pre class="help-pre"><code>wallpaper change → huepr-notify → theme_host.py → Native Messaging → background.js → content.js → :root CSS variables</code></pre>
+
+    <div class="help-sep"></div>
+    <h2 class="help-h2">Themes</h2>
+    <p class="help-p">Each theme is a named set of CSS variables. The theme name must exactly match the wallpaper filename stem (e.g., wallpaper <code class="help-code">Aurora.jpg</code> → theme name <code class="help-code">Aurora</code>).</p>
+    <p class="help-p">Built-in themes (always available): <code class="help-code">Aurora</code>, <code class="help-code">Sunset</code>, <code class="help-code">Latte</code>, <code class="help-code">Frappe</code>. Custom themes added via the Themes tab override built-ins.</p>
+    <p class="help-p">Standard theme variables:</p>
+    <pre class="help-pre"><code>--theme-bg       main background
+--theme-fg       primary text
+--theme-surface  elevated surfaces (cards, sidebars)
+--theme-accent   links, highlights
+--theme-border   dividers
+--theme-red      semantic red
+--theme-green    semantic green
+--theme-yellow   semantic yellow
+--theme-blue     semantic blue</code></pre>
+    <p class="help-p">If the current wallpaper has no matching theme, Huepr clears all injected variables and the site reverts to its default appearance.</p>
+
+    <div class="help-sep"></div>
+    <h2 class="help-h2">Sites &amp; Mappings</h2>
+    <p class="help-p">Add a site by its hostname (e.g. <code class="help-code">github.com</code>). Then define mappings: each mapping connects a site CSS variable to a theme variable.</p>
+    <p class="help-p">Example: <code class="help-code">--color-canvas-default → --theme-bg</code> means GitHub's canvas background will be set to the current theme's <code class="help-code">--theme-bg</code> color.</p>
+
+    <div class="help-sep"></div>
+    <h2 class="help-h2">Finding a site's CSS variables</h2>
+    <p class="help-p">Open DevTools on the target site and run this in the Console tab:</p>
+    <pre class="help-pre"><code>const vars = new Set();
+[...document.styleSheets].forEach(sheet => {
+  try {
+    [...sheet.cssRules].forEach(rule => {
+      if (rule.style) [...rule.style].filter(p => p.startsWith('--')).forEach(p => vars.add(p));
+    });
+  } catch {}
+});
+console.log([...vars].sort().join('\n'));</code></pre>
+    <p class="help-p">This prints all CSS custom properties defined in the site's stylesheets. Look for variables that control background, text, accent, and border colors.</p>
+    <p class="help-p">Alternatively: open DevTools → Inspector → select <code class="help-code">&lt;html&gt;</code> → Computed tab → filter by <code class="help-code">--</code>.</p>
+
+    <div class="help-sep"></div>
+    <h2 class="help-h2">Export / Import</h2>
+    <p class="help-p"><strong style="color:var(--text)">Export JSON (Sites tab)</strong> — downloads <code class="help-code">huepr-config.json</code> with your whitelist and mappings.</p>
+    <p class="help-p"><strong style="color:var(--text)">Export JSON (Themes tab)</strong> — downloads <code class="help-code">themes.json</code> with your custom themes.</p>
+    <p class="help-p"><strong style="color:var(--text)">Import JSON</strong> — imports the matching format depending on which tab is active.</p>
+
+  </div>
+</div>
+
+
+<!-- ── Extract palette overlay ─────────────────────────────────────────────── -->
+<div id="extract-overlay" style="display:none">
+  <div id="extract-modal">
+    <div class="extract-header">
+      <span class="extract-title">Extracted Palette</span>
+      <button class="btn-icon" id="extract-close" style="color:var(--subtext)" title="Close">✕</button>
+    </div>
+    <div id="extract-preview"></div>
+    <div class="extract-footer">
+      <button class="btn-ghost btn-sm" id="extract-cancel">Cancel</button>
+      <button class="btn-primary btn-sm" id="extract-apply">Apply to theme</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Detect overlay ──────────────────────────────────────────────────────── -->
+<div id="detect-overlay" style="display:none">
+  <div id="detect-modal">
+    <div id="detect-header">
+      <span id="detect-title">Detected CSS Variables</span>
+      <button class="btn-icon" id="detect-close" style="color:var(--subtext)" title="Close">✕</button>
+    </div>
+    <div id="detect-filter-row">
+      <input type="text" id="detect-filter" placeholder="Filter variables…" />
+    </div>
+    <ul id="detect-list"></ul>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+
+<script src="options.js"></script>
+</body>
+</html>

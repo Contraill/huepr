@@ -1,0 +1,29 @@
+# Claude Code
+.claude/
+
+# Dev notes
+TODO.md
+release.sh
+
+# Signed extension artifacts
+.signed/
+huepr-*.xpi
+huepr.xpi
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Node
+node_modules/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
