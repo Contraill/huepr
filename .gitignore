@@ -9,6 +9,7 @@ release.sh
 .signed/
 huepr-*.xpi
 huepr.xpi
+.amo-upload-uuid
 
 # Python
 __pycache__/

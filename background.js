@@ -9,6 +9,8 @@ const NATIVE_HOST = "com.huepr.theme_host";
 
 const DEFAULT_WHITELIST = [];
 
+// Bundled theme presets. Storage themes override individual variables —
+// a user theme with only --theme-bg still inherits the rest from here.
 const DEFAULT_THEMES = {
   "Aurora": {
     "--theme-bg":      "#1e1e2e",
@@ -62,9 +64,11 @@ let port             = null;
 let currentWallpaper = null;
 let _retries         = 0;
 const MAX_RETRIES    = 10;
+let _applyDebounce   = null;
 
 // ── Storage ───────────────────────────────────────────────────────────────────
 
+// Read config from storage, merging DEFAULT_THEMES as base per theme.
 async function getConfig() {
   const data = await browser.storage.local.get({
     whitelist:   DEFAULT_WHITELIST,
@@ -95,6 +99,8 @@ async function getConfig() {
 
 // ── Native Messaging — persistent connection ──────────────────────────────────
 
+// Connect to the native messaging host. Retries up to MAX_RETRIES times
+// (5s apart) on failure or disconnect.
 function connectNative() {
   log('[huepr] connectNative calling...');
   try {
@@ -107,6 +113,8 @@ function connectNative() {
     return;
   }
 
+  // Wallpaper change flow: theme_host.py → NM message → update currentWallpaper
+  // → debounced applyThemeToAllTabs (100ms, shared timer with storage.onChanged).
   port.onMessage.addListener(async (msg) => {
     _retries = 0;
     log('[huepr] NM message received:', msg.type, msg.wallpaper ?? '');
@@ -114,7 +122,8 @@ function connectNative() {
     const { hookEnabled } = await browser.storage.local.get({ hookEnabled: true });
     if (!hookEnabled) return;
     currentWallpaper = msg.wallpaper;
-    await applyThemeToAllTabs();
+    clearTimeout(_applyDebounce);
+    _applyDebounce = setTimeout(() => applyThemeToAllTabs(), 100);
   });
 
   port.onDisconnect.addListener(() => {
@@ -144,6 +153,8 @@ function resolveVars(theme, siteMappings) {
   return out;
 }
 
+// Pick the effective theme for a host (site override or current wallpaper),
+// resolve site var mappings against it, and return cssVars + customCSS.
 function resolveForHost(host, mappings, themes, siteThemes = {}, themeCSS = {}) {
   const hostMappings = mappings[host] ?? {};
   const effectiveThemeName = siteThemes[host] || currentWallpaper;
@@ -157,6 +168,7 @@ function resolveForHost(host, mappings, themes, siteThemes = {}, themeCSS = {}) 
 
 // ── Theme Application ─────────────────────────────────────────────────────────
 
+// Push the current theme to every whitelisted tab.
 async function applyThemeToAllTabs() {
   if (!currentWallpaper) return;
   const { whitelist, mappings, themes, siteThemes, themeCSS } = await getConfig();
@@ -175,6 +187,7 @@ async function applyThemeToAllTabs() {
   }
 }
 
+// Push the current theme to a single tab (used on tab load/activate).
 async function applyThemeToTab(tabId, url) {
   if (!currentWallpaper) return;
   const { whitelist, mappings, themes, siteThemes, themeCSS } = await getConfig();
@@ -235,7 +248,7 @@ browser.runtime.onMessage.addListener(async (msg, sender) => {
       if (!mappings[hostname]) mappings[hostname] = {};
       await browser.storage.local.set({ whitelist, mappings });
     }
-    return { added: !whitelist.includes(hostname) };
+    return { added: whitelist.includes(hostname) };
   }
 
   if (msg.type !== "get_theme") return;
@@ -262,18 +275,19 @@ browser.tabs.onActivated.addListener(async ({ tabId }) => {
   if (tab.url) applyThemeToTab(tabId, tab.url);
 });
 
-// Re-apply when whitelist, mappings, or themes change in options
+// Re-apply when config changes in options. Debounced (100ms) to prevent
+// hammering tabs during rapid saves (e.g. typing in custom CSS textarea).
 browser.storage.onChanged.addListener(async (changes, area) => {
   if (area !== "local") return;
-  if (changes.mappings || changes.whitelist || changes.themes || changes.siteThemes || changes.themeCSS) {
-    await applyThemeToAllTabs();
-  }
   if (changes.manualTheme) {
     const { hookEnabled } = await browser.storage.local.get({ hookEnabled: true });
     if (!hookEnabled && changes.manualTheme.newValue) {
       currentWallpaper = changes.manualTheme.newValue;
-      await applyThemeToAllTabs();
     }
+  }
+  if (changes.mappings || changes.whitelist || changes.themes || changes.siteThemes || changes.themeCSS || changes.manualTheme) {
+    clearTimeout(_applyDebounce);
+    _applyDebounce = setTimeout(() => applyThemeToAllTabs(), 100);
   }
 });
 

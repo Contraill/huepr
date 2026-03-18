@@ -533,13 +533,14 @@ async function importData(file) {
       // Expect { whitelist, mappings }
       if (!Array.isArray(parsed.whitelist) || typeof parsed.mappings !== "object")
         throw new Error("Expected { whitelist, mappings }");
+      if (!parsed.whitelist.every(h => typeof h === 'string')) throw new Error("invalid");
       state.whitelist = parsed.whitelist;
       state.mappings  = parsed.mappings;
       await save();
       state.selectedSite = null;
       renderSiteList();
       renderMappings();
-      toast("Config imported");
+      toast(`Imported ${parsed.whitelist.length} sites, ${Object.keys(parsed.mappings).length} mappings`);
     }
   } catch (err) {
     toast("Import failed: " + err.message, "err");
@@ -726,15 +727,20 @@ document.getElementById("btn-detect").addEventListener("click", async () => {
   btn.textContent = "Detecting…";
   btn.disabled = true;
   try {
-    const resp = await browser.runtime.sendMessage({
-      type: "detect_vars",
-      hostname: state.selectedSite,
-    });
+    const resp = await Promise.race([
+      browser.runtime.sendMessage({
+        type: "detect_vars",
+        hostname: state.selectedSite,
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 10000)),
+    ]);
     if (resp?.noTab) {
       toast(`Open ${state.selectedSite} in a tab first`, "err");
     } else {
       openDetectOverlay(resp?.vars ?? []);
     }
+  } catch {
+    toast("No response from tab — reload the page and try again", "err");
   } finally {
     btn.textContent = "Detect";
     btn.disabled = false;

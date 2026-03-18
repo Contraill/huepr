@@ -13,7 +13,7 @@ caelestia-wallhook → huepr-notify → huepr.pipe → theme_host.py → Native 
 ```
 
 1. Your wallpaper hook calls `huepr-notify` with the new wallpaper path.
-2. `theme_host.py` reads the path, matches it to a theme by filename, and sends the theme to the browser extension via Native Messaging.
+2. `theme_host.py` extracts the wallpaper filename stem (e.g. `/path/to/Aurora.jpg` → `Aurora`) and sends it to the extension via Native Messaging. The extension matches this name against your theme names.
 3. The extension injects CSS custom properties into every whitelisted site.
 4. Sites that map their own CSS variables to theme variables update instantly.
 
@@ -50,6 +50,7 @@ Restart your browser. The extension loads automatically.
 
 - Firefox or Zen Browser
 - Python 3.8+
+- git (used by `huepr-update` to fetch updates)
 - [Caelestia](https://github.com/caelestia-dots/caelestia) with `caelestia-wallhook` (for automatic wallpaper trigger)
 
 ### Updating
@@ -129,6 +130,23 @@ When active, all theme variables are injected into `:root` on whitelisted sites.
 --site-background  →  value of --theme-bg
 --site-link-color  →  value of --theme-accent
 ```
+
+---
+
+## Troubleshooting
+
+**Extension icon doesn't appear**
+Check `about:debugging` → This Firefox → Extensions to verify Huepr is loaded. In `about:config`, confirm `xpinstall.signatures.required` is `false`.
+
+**Theme doesn't switch on wallpaper change**
+- Verify `caelestia-wallhook` is patched: `grep huepr-notify ~/.local/bin/caelestia-wallhook`
+- Verify the native host is running: `about:debugging` → Huepr → Inspect → check the background console for connection messages
+
+**CSS variables not applying**
+Open Options → Sites & Mappings → confirm the site is whitelisted and has mappings. Use the **Detect** button to find available CSS variables on the active tab.
+
+**`huepr-update` fails**
+Check that `~/.config/huepr/config` contains a valid `REPO_URL` pointing to a git remote.
 
 ---
 

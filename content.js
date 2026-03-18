@@ -11,6 +11,8 @@ const activeVars = new Set();
 
 let _transitionTimer = null;
 
+// Inject a temporary transition rule so theme changes animate smoothly.
+// Removed after 600ms to avoid permanently overriding the site's own transitions.
 function injectTransition() {
   if (document.getElementById("huepr-transition")) return;
   const style = document.createElement("style");
@@ -26,6 +28,8 @@ function removeTransition() {
   document.getElementById("huepr-transition")?.remove();
 }
 
+// Create/update <style id="huepr-custom-css"> with per-theme CSS.
+// Removes the tag when css is empty (theme cleared or no custom CSS defined).
 function applyCustomCSS(css) {
   const existing = document.getElementById("huepr-custom-css");
   if (!css) {
@@ -38,6 +42,9 @@ function applyCustomCSS(css) {
   if (!existing) document.head.appendChild(style);
 }
 
+// Apply a theme to the page. managedVars lists all variables background.js
+// knows about — ensures cleanup works even if activeVars is stale (e.g. after
+// extension restart when content script state was lost but vars remain on :root).
 function applyTheme(cssVars, managedVars = [], customCSS = "") {
   const root = document.documentElement;
 
@@ -85,7 +92,7 @@ browser.runtime.onMessage.addListener((msg) => {
             .filter(p => p.startsWith("--"))
             .forEach(p => vars.add(p));
         });
-      } catch {}
+      } catch (e) { log('[huepr] stylesheet parse error:', e); }
     });
     return Promise.resolve({ type: "vars_detected", vars: [...vars].sort() });
   }

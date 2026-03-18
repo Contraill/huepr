@@ -33,9 +33,13 @@ from pathlib import Path
 # ── Paths ─────────────────────────────────────────────────────────────────────
 
 CAELESTIA_CACHE = Path.home() / ".cache" / "caelestia" / "last_wallpaper"
+# Named pipe (FIFO): decouples the wallpaper hook from the host process.
+# The hook script (huepr-notify) writes the path; the host reads it.
+# This avoids launching a new process per wallpaper change.
 PIPE_PATH       = Path.home() / ".cache" / "huepr" / "huepr.pipe"
 
 # ── Native Messaging I/O ──────────────────────────────────────────────────────
+# Firefox NM protocol: 4-byte little-endian length prefix + UTF-8 JSON on stdout.
 
 def nm_send(obj: dict) -> None:
     """Write 4-byte LE length prefix + JSON to stdout (NM protocol)."""
@@ -46,6 +50,8 @@ def nm_send(obj: dict) -> None:
 
 # ── Wallpaper Helpers ─────────────────────────────────────────────────────────
 
+# Theme matching uses Path.stem to extract the filename without extension.
+# e.g. /path/to/Aurora.jpg → "Aurora" — background.js matches this to a theme name.
 def send_wallpaper_change(wp_input: str) -> bool:
     """
     wp_input: full path (/path/to/Aurora.jpg) or bare name (Aurora).
@@ -59,6 +65,8 @@ def send_wallpaper_change(wp_input: str) -> bool:
     return True
 
 # ── Stdin Monitor — browser disconnect detection ──────────────────────────────
+# Runs in a daemon thread. When stdin hits EOF (browser closed the NM channel),
+# it signals the main thread to exit by setting stop_event and poking the pipe.
 
 def monitor_stdin(stop_event: threading.Event) -> None:
     """

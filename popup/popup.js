@@ -11,6 +11,8 @@ function toast(msg, type = "ok") {
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
+// On load: fetch status from background.js (wallpaper, hook state, theme list),
+// populate the UI, and wire up event listeners.
 
 (async () => {
   const status = await browser.runtime.sendMessage({ type: "get_status" });
@@ -32,7 +34,8 @@ function toast(msg, type = "ok") {
     .map(n => `<option value="${n}"${n === status.manualTheme ? " selected" : ""}>${n}</option>`)
     .join("");
 
-  // Hook toggle listener
+  // Hook toggle: writing hookEnabled to storage triggers background.js
+  // storage.onChanged, which debounces a re-apply to all tabs.
   chk.addEventListener("change", async () => {
     await browser.storage.local.set({ hookEnabled: chk.checked });
     manualRow.style.display = chk.checked ? "none" : "";
