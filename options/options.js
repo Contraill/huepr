@@ -420,7 +420,7 @@ function renderThemeVarsTable() {
       `;
       const nameInput   = tr.querySelector("td:first-child input");
       const pickerInput = tr.querySelector("input[type='color']");
-      const hexInput    = tr.querySelector("input[type='text']:last-of-type");
+      const hexInput    = tr.querySelector(".color-cell input[type='text']");
       pickerInput.addEventListener("input", () => { hexInput.value = pickerInput.value; });
       hexInput.addEventListener("input", () => {
         if (HEX_RE.test(hexInput.value)) pickerInput.value = hexInput.value;
