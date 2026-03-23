@@ -17,6 +17,10 @@
         {
           "version": "2.0.1",
           "update_link": "https://github.com/Contraill/Huepr/releases/download/v2.0.1/huepr-2.0.1.xpi"
+        },
+        {
+          "version": "2.0.2",
+          "update_link": "https://github.com/Contraill/Huepr/releases/download/v2.0.2/huepr-2.0.2.xpi"
         }
       ]
     }
