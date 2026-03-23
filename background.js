@@ -1,6 +1,6 @@
 "use strict";
 
-const DEBUG = false;
+const DEBUG = true;
 const log   = (...a) => DEBUG && console.log(...a);
 
 const NATIVE_HOST = "com.huepr.theme_host";
@@ -122,6 +122,7 @@ function connectNative() {
     const { hookEnabled } = await browser.storage.local.get({ hookEnabled: true });
     if (!hookEnabled) return;
     currentWallpaper = msg.wallpaper;
+    browser.storage.local.set({ lastWallpaper: msg.wallpaper });
     clearTimeout(_applyDebounce);
     _applyDebounce = setTimeout(() => applyThemeToAllTabs(), 100);
   });
@@ -204,6 +205,7 @@ async function applyThemeToTab(tabId, url) {
 
 async function applyManualTheme(themeName) {
   currentWallpaper = themeName;
+  await browser.storage.local.set({ lastWallpaper: themeName });
   await applyThemeToAllTabs();
 }
 
@@ -303,5 +305,21 @@ function hostnameOf(url) {
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
+
+(async () => {
+  // Restore currentWallpaper from storage so themes survive extension restart
+  const { lastWallpaper, hookEnabled, manualTheme } = await browser.storage.local.get({
+    lastWallpaper: null,
+    hookEnabled:   true,
+    manualTheme:   null,
+  });
+  if (!hookEnabled && manualTheme) {
+    currentWallpaper = manualTheme;
+  } else if (lastWallpaper) {
+    currentWallpaper = lastWallpaper;
+  }
+  log('[huepr] boot: currentWallpaper =', currentWallpaper);
+  if (currentWallpaper) applyThemeToAllTabs();
+})();
 
 connectNative();

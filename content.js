@@ -1,6 +1,6 @@
 "use strict";
 
-const DEBUG = false;
+const DEBUG = true;
 const log   = (...a) => DEBUG && console.log(...a);
 
 log('[huepr] content.js loaded', window.location.hostname);
@@ -28,7 +28,7 @@ function removeTransition() {
   document.getElementById("huepr-transition")?.remove();
 }
 
-// Create/update <style id="huepr-custom-css"> with per-theme CSS.
+// Create/update <style id="huepr-custom-css"> with per-site CSS.
 // Removes the tag when css is empty (theme cleared or no custom CSS defined).
 function applyCustomCSS(css) {
   const existing = document.getElementById("huepr-custom-css");
