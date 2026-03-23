@@ -9,7 +9,7 @@ const state = {
   mappings:     {},   // { hostname: { siteVar: themeVar } }
   themes:       {},   // { themeName: { cssVar: hexValue } }
   siteThemes:   {},   // { hostname: themeName | "" }
-  themeCSS:     {},   // { themeName: css string }
+  siteCSS:     {},   // { themeName: css string }
   selectedSite:  null,
   selectedTheme: null,
   activeTab:    "sites",
@@ -19,13 +19,13 @@ const state = {
 
 async function load() {
   const data = await browser.storage.local.get({
-    whitelist: [], mappings: {}, themes: {}, siteThemes: {}, themeCSS: {}
+    whitelist: [], mappings: {}, themes: {}, siteThemes: {}, siteCSS: {}
   });
   state.whitelist   = data.whitelist;
   state.mappings    = data.mappings;
   state.themes      = data.themes;
   state.siteThemes  = data.siteThemes;
-  state.themeCSS    = data.themeCSS;
+  state.siteCSS    = data.siteCSS;
 }
 
 async function save() {
@@ -34,7 +34,7 @@ async function save() {
     mappings:   state.mappings,
     themes:     state.themes,
     siteThemes: state.siteThemes,
-    themeCSS:   state.themeCSS,
+    siteCSS:   state.siteCSS,
   });
 }
 
@@ -142,6 +142,7 @@ async function addSite() {
 async function removeSite(site) {
   state.whitelist = state.whitelist.filter(s => s !== site);
   delete state.mappings[site];
+  delete state.siteCSS[site];
   await save();
   if (state.selectedSite === site) {
     state.selectedSite = null;
@@ -190,6 +191,7 @@ function renderMappings() {
   dl.innerHTML = allThemeVars().map(v => `<option value="${esc(v)}">`).join("");
 
   renderMappingTable();
+  renderSiteCSSList();
 }
 
 function renderMappingTable() {
@@ -374,7 +376,6 @@ function renderThemeVars() {
   head.textContent      = `Variables — ${state.selectedTheme}`;
   title.textContent     = state.selectedTheme;
   extractBtn.style.display = "";
-  document.getElementById("theme-custom-css").value = state.themeCSS[state.selectedTheme] ?? "";
   renderThemeVarsTable();
 }
 
@@ -502,7 +503,9 @@ function exportData() {
     data     = JSON.stringify(state.themes, null, 2);
     filename = "themes.json";
   } else {
-    data     = JSON.stringify({ whitelist: state.whitelist, mappings: state.mappings }, null, 2);
+    const exportObj = { whitelist: state.whitelist, mappings: state.mappings };
+    if (Object.keys(state.siteCSS).length) exportObj.siteCSS = state.siteCSS;
+    data     = JSON.stringify(exportObj, null, 2);
     filename = "huepr-config.json";
   }
 
@@ -536,6 +539,9 @@ async function importData(file) {
       if (!parsed.whitelist.every(h => typeof h === 'string')) throw new Error("invalid");
       state.whitelist = parsed.whitelist;
       state.mappings  = parsed.mappings;
+      if (parsed.siteCSS && typeof parsed.siteCSS === "object") {
+        Object.assign(state.siteCSS, parsed.siteCSS);
+      }
       await save();
       state.selectedSite = null;
       renderSiteList();
@@ -777,14 +783,53 @@ document.getElementById("site-theme-override").addEventListener("change", async 
   await save();
 });
 
-document.getElementById("theme-custom-css").addEventListener("input", async function() {
-  if (!state.selectedTheme) return;
-  if (this.value.trim()) {
-    state.themeCSS[state.selectedTheme] = this.value;
-  } else {
-    delete state.themeCSS[state.selectedTheme];
-  }
+// Site custom CSS — line-by-line management
+async function addSiteCSSRule() {
+  const inp = document.getElementById("new-css-rule");
+  const rule = inp.value.trim();
+  if (!rule || !state.selectedSite) return;
+  state.siteCSS[state.selectedSite] ??= [];
+  state.siteCSS[state.selectedSite].push(rule);
   await save();
+  inp.value = "";
+  renderSiteCSSList();
+  toast("CSS rule added");
+}
+
+async function removeSiteCSSRule(index) {
+  const rules = state.siteCSS[state.selectedSite];
+  if (!rules) return;
+  rules.splice(index, 1);
+  if (!rules.length) delete state.siteCSS[state.selectedSite];
+  await save();
+  renderSiteCSSList();
+  toast("CSS rule removed");
+}
+
+function renderSiteCSSList() {
+  const list = document.getElementById("site-css-list");
+  if (!list) return;
+  const rules = state.siteCSS[state.selectedSite] ?? [];
+  list.innerHTML = "";
+  if (!rules.length) {
+    list.innerHTML = `<li style="color:var(--overlay);font-size:12px;padding:6px 0">No custom CSS rules</li>`;
+    return;
+  }
+  rules.forEach((rule, i) => {
+    const li = document.createElement("li");
+    li.style.cssText = "display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid color-mix(in srgb, var(--border) 45%, transparent)";
+    li.innerHTML = `
+      <span class="chip" style="flex:1;font-size:11px" title="${esc(rule)}">${esc(rule)}</span>
+      <button class="btn-icon" data-del-css="${i}" title="Remove">✕</button>
+    `;
+    li.querySelector("[data-del-css]").addEventListener("click", () => removeSiteCSSRule(i));
+    list.appendChild(li);
+  });
+}
+
+document.getElementById("btn-add-css").addEventListener("click", addSiteCSSRule);
+document.getElementById("new-css-rule").addEventListener("keydown", e => {
+  if (e.key === "Enter") addSiteCSSRule();
 });
 
 // Themes tab

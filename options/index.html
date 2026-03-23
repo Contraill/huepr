@@ -444,30 +444,6 @@
 
     #site-theme-override:focus { border-color: var(--accent); }
 
-    .custom-css-row {
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      margin-bottom: 12px;
-    }
-
-    #theme-custom-css {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: var(--r-sm);
-      color: var(--text);
-      font-family: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
-      font-size: 11px;
-      line-height: 1.5;
-      min-height: 72px;
-      outline: none;
-      padding: 6px 8px;
-      resize: vertical;
-      width: 100%;
-    }
-
-    #theme-custom-css:focus { border-color: var(--accent); }
-    #theme-custom-css::placeholder { color: var(--overlay); }
 
     /* ── Extract palette overlay ─────────────────────────────────────────── */
     #extract-overlay {
@@ -853,6 +829,17 @@
           </div>
 
           <datalist id="theme-var-list"></datalist>
+
+          <div class="section-title" style="margin-top:18px">
+            <div class="dot"></div>
+            <span>Custom CSS</span>
+          </div>
+          <ul id="site-css-list" style="list-style:none;margin-bottom:10px"></ul>
+          <div class="add-table-row">
+            <input type="text" class="mono" id="new-css-rule"
+                   placeholder="body { background-color: var(--theme-bg) !important; }" style="flex:1" />
+            <button class="btn-primary btn-sm" id="btn-add-css">Add</button>
+          </div>
         </div>
 
       </div>
@@ -932,10 +919,6 @@
               <option value="--theme-yellow">
               <option value="--theme-blue">
             </datalist>
-          </div>
-          <div class="custom-css-row">
-            <label class="override-label" for="theme-custom-css">Custom CSS</label>
-            <textarea id="theme-custom-css" placeholder="/* override hardcoded colors for this theme */&#10;path[fill='#FF0033'] { fill: var(--theme-accent) !important; }"></textarea>
           </div>
         </div>
 
