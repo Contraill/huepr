@@ -76,7 +76,7 @@ async function getConfig() {
     hookEnabled: true,
     themes:      {},
     siteThemes:  {},
-    themeCSS:    {},
+    siteCSS:     {},
   });
 
   // Merge DEFAULT_THEMES as base: storage vars override defaults per theme.
@@ -155,14 +155,15 @@ function resolveVars(theme, siteMappings) {
 
 // Pick the effective theme for a host (site override or current wallpaper),
 // resolve site var mappings against it, and return cssVars + customCSS.
-function resolveForHost(host, mappings, themes, siteThemes = {}, themeCSS = {}) {
+function resolveForHost(host, mappings, themes, siteThemes = {}, siteCSS = {}) {
   const hostMappings = mappings[host] ?? {};
   const effectiveThemeName = siteThemes[host] || currentWallpaper;
   const theme = themes[effectiveThemeName];
+  const cssLines = siteCSS[host];
   return {
     cssVars:     theme ? { ...theme, ...resolveVars(theme, hostMappings) } : {},
     managedVars: [...Object.keys(theme ?? {}), ...Object.keys(hostMappings)],
-    customCSS:   theme ? (themeCSS[effectiveThemeName] ?? "") : "",
+    customCSS:   theme && Array.isArray(cssLines) ? cssLines.join("\n") : "",
   };
 }
 
@@ -171,7 +172,7 @@ function resolveForHost(host, mappings, themes, siteThemes = {}, themeCSS = {}) 
 // Push the current theme to every whitelisted tab.
 async function applyThemeToAllTabs() {
   if (!currentWallpaper) return;
-  const { whitelist, mappings, themes, siteThemes, themeCSS } = await getConfig();
+  const { whitelist, mappings, themes, siteThemes, siteCSS } = await getConfig();
   log('[huepr] applyThemeToAllTabs, whitelist:', whitelist);
   const tabs = await browser.tabs.query({});
 
@@ -179,7 +180,7 @@ async function applyThemeToAllTabs() {
     const host = hostnameOf(tab.url);
     log('[huepr] tab check:', tab.url, '→ host:', host, '→ listed:', whitelist.includes(host ?? ''));
     if (!host || !whitelist.includes(host)) continue;
-    const { cssVars, managedVars, customCSS } = resolveForHost(host, mappings, themes, siteThemes, themeCSS);
+    const { cssVars, managedVars, customCSS } = resolveForHost(host, mappings, themes, siteThemes, siteCSS);
     log('[huepr] sending:', host, cssVars);
     browser.tabs.sendMessage(tab.id, { type: "apply_theme", cssVars, managedVars, customCSS }).catch((e) => {
       console.warn('[huepr] sendMessage error:', host, e.message);
@@ -190,11 +191,11 @@ async function applyThemeToAllTabs() {
 // Push the current theme to a single tab (used on tab load/activate).
 async function applyThemeToTab(tabId, url) {
   if (!currentWallpaper) return;
-  const { whitelist, mappings, themes, siteThemes, themeCSS } = await getConfig();
+  const { whitelist, mappings, themes, siteThemes, siteCSS } = await getConfig();
   const host = hostnameOf(url);
   log('[huepr] applyThemeToTab:', url, '→ host:', host, '→ listed:', whitelist.includes(host ?? ''));
   if (!host || !whitelist.includes(host)) return;
-  const { cssVars, managedVars, customCSS } = resolveForHost(host, mappings, themes, siteThemes, themeCSS);
+  const { cssVars, managedVars, customCSS } = resolveForHost(host, mappings, themes, siteThemes, siteCSS);
   log('[huepr] sending:', host, cssVars);
   browser.tabs.sendMessage(tabId, { type: "apply_theme", cssVars, managedVars, customCSS }).catch((e) => {
     console.warn('[huepr] sendMessage error:', host, e.message);
@@ -254,11 +255,11 @@ browser.runtime.onMessage.addListener(async (msg, sender) => {
   if (msg.type !== "get_theme") return;
   if (!currentWallpaper || !sender.tab?.url) return;
 
-  const { whitelist, mappings, themes, siteThemes, themeCSS } = await getConfig();
+  const { whitelist, mappings, themes, siteThemes, siteCSS } = await getConfig();
   const host = hostnameOf(sender.tab.url);
   if (!host || !whitelist.includes(host)) return;
 
-  const { cssVars, managedVars, customCSS } = resolveForHost(host, mappings, themes, siteThemes, themeCSS);
+  const { cssVars, managedVars, customCSS } = resolveForHost(host, mappings, themes, siteThemes, siteCSS);
   return { type: "apply_theme", cssVars, managedVars, customCSS };
 });
 
@@ -285,7 +286,7 @@ browser.storage.onChanged.addListener(async (changes, area) => {
       currentWallpaper = changes.manualTheme.newValue;
     }
   }
-  if (changes.mappings || changes.whitelist || changes.themes || changes.siteThemes || changes.themeCSS || changes.manualTheme) {
+  if (changes.mappings || changes.whitelist || changes.themes || changes.siteThemes || changes.siteCSS || changes.manualTheme) {
     clearTimeout(_applyDebounce);
     _applyDebounce = setTimeout(() => applyThemeToAllTabs(), 100);
   }
