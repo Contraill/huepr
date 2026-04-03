@@ -182,7 +182,7 @@ async function applyThemeToAllTabs() {
     log('[huepr] tab check:', tab.url, '→ host:', host, '→ listed:', whitelist.includes(host ?? ''));
     if (!host || !whitelist.includes(host)) continue;
     const { cssVars, managedVars, customCSS } = resolveForHost(host, mappings, themes, siteThemes, siteCSS);
-    log('[huepr] sending:', host, cssVars);
+    log('[huepr] sending:', host, 'customCSS:', customCSS ? customCSS.slice(0, 80) + '...' : '(empty)', 'vars:', Object.keys(cssVars).length);
     browser.tabs.sendMessage(tab.id, { type: "apply_theme", cssVars, managedVars, customCSS }).catch((e) => {
       console.warn('[huepr] sendMessage error:', host, e.message);
     });
