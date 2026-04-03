@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Huepr",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "Hyprland wallpaper changes inject CSS variables into whitelisted sites via Native Messaging.",
   "browser_specific_settings": {
     "gecko": {
