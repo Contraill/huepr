@@ -28,6 +28,7 @@ import os
 import json
 import struct
 import threading
+import time
 from pathlib import Path
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
@@ -103,11 +104,16 @@ def main() -> None:
         target=monitor_stdin, args=(stop_event,), daemon=True
     ).start()
 
-    # Send initial wallpaper notification
+    # Send initial wallpaper notification.
+    # Startup can race with extension listener registration, so send twice.
     if CAELESTIA_CACHE.exists():
         content = CAELESTIA_CACHE.read_text(encoding="utf-8").strip()
         if content:
-            send_wallpaper_change(content)
+            for delay_s in (0.35, 1.25):
+                if stop_event.is_set():
+                    break
+                time.sleep(delay_s)
+                send_wallpaper_change(content)
 
     # Pipe read loop
     try:
