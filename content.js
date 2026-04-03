@@ -31,6 +31,7 @@ function removeTransition() {
 // Create/update <style id="huepr-custom-css"> with per-site CSS.
 // Removes the tag when css is empty (theme cleared or no custom CSS defined).
 function applyCustomCSS(css) {
+  log('[huepr] applyCustomCSS called, length:', css?.length ?? 0, css ? css.slice(0, 80) : '(empty)');
   const existing = document.getElementById("huepr-custom-css");
   if (!css) {
     existing?.remove();
@@ -40,6 +41,7 @@ function applyCustomCSS(css) {
   style.id = "huepr-custom-css";
   style.textContent = css;
   if (!existing) document.head.appendChild(style);
+  log('[huepr] custom CSS injected, element in DOM:', !!document.getElementById("huepr-custom-css"));
 }
 
 // Apply a theme to the page. managedVars lists all variables background.js
