@@ -38,6 +38,7 @@ CAELESTIA_CACHE = Path.home() / ".cache" / "caelestia" / "last_wallpaper"
 # The hook script (huepr-notify) writes the path; the host reads it.
 # This avoids launching a new process per wallpaper change.
 PIPE_PATH       = Path.home() / ".cache" / "huepr" / "huepr.pipe"
+LOG_PATH        = Path.home() / ".cache" / "huepr" / "host.log"
 
 # ── Native Messaging I/O ──────────────────────────────────────────────────────
 # Firefox NM protocol: 4-byte little-endian length prefix + UTF-8 JSON on stdout.
@@ -48,6 +49,15 @@ def nm_send(obj: dict) -> None:
     sys.stdout.buffer.write(struct.pack("<I", len(data)))
     sys.stdout.buffer.write(data)
     sys.stdout.buffer.flush()
+
+
+def dbg(msg: str) -> None:
+    try:
+        LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with LOG_PATH.open("a", encoding="utf-8") as f:
+            f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} {msg}\n")
+    except Exception:
+        pass
 
 # ── Wallpaper Helpers ─────────────────────────────────────────────────────────
 
@@ -63,6 +73,7 @@ def send_wallpaper_change(wp_input: str) -> bool:
     if not name:
         return False
     nm_send({"type": "wallpaper_change", "wallpaper": name})
+    dbg(f"sent wallpaper_change wallpaper={name}")
     return True
 
 # ── Stdin Monitor — browser disconnect detection ──────────────────────────────
@@ -78,6 +89,7 @@ def monitor_stdin(stop_event: threading.Event) -> None:
     while True:
         if not sys.stdin.buffer.read(1):   # EOF
             stop_event.set()
+            dbg("stdin EOF (browser disconnected)")
             try:
                 fd = os.open(str(PIPE_PATH), os.O_WRONLY | os.O_NONBLOCK)
                 os.close(fd)
@@ -97,6 +109,7 @@ def main() -> None:
     PIPE_PATH.parent.mkdir(parents=True, exist_ok=True)
     remove_pipe()
     os.mkfifo(str(PIPE_PATH))
+    dbg("host started")
 
     # Start stdin monitor thread
     stop_event = threading.Event()
@@ -136,6 +149,7 @@ def main() -> None:
 
             wp_path = raw.decode(errors="replace").strip()
             if wp_path:
+                dbg(f"pipe event wp_path={wp_path}")
                 send_wallpaper_change(wp_path)
 
     finally:
