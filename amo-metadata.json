@@ -1,0 +1,17 @@
+{
+  "summary": {
+    "en-US": "Wallpaper changes → browser theme. Injects CSS variables into the sites you choose whenever your Linux desktop wallpaper changes."
+  },
+  "description": {
+    "en-US": "Huepr re-themes websites to match your desktop wallpaper, live, without reloading the page.\n\nA small native messaging host (installed with the script from the GitHub repository) tells the extension when your wallpaper changes. Huepr then looks up the theme with the same name as the wallpaper file and sets its colors as CSS custom properties on the sites you added.\n\n<b>Features</b>\n<ul>\n<li>Wallpaper-driven theming: the theme switches when the wallpaper changes</li>\n<li>Per-site mapping from the site's own CSS variables to theme colors</li>\n<li>Per-site theme override and custom CSS rules</li>\n<li>Detect the CSS variables a site uses</li>\n<li>Extract a palette from an image to start a theme</li>\n<li>Manual theme selection when the wallpaper hook is off</li>\n</ul>\n\n<b>Requirements</b>\nLinux, Python 3 and the native host from https://github.com/Contraill/huepr (run install.sh). Built for Hyprland + Caelestia; any wallpaper tool can call huepr-notify.\n\n<b>Privacy</b>\nHuepr only gets access to the sites you add, makes no network requests and collects no data. Themes and settings stay in the browser's local extension storage."
+  },
+  "categories": {
+    "firefox": [
+      "appearance"
+    ]
+  },
+  "version": {
+    "license": "MIT",
+    "approval_notes": "Source: https://github.com/Contraill/huepr (unminified, no build step; the XPI is the repository's extension files packed with web-ext).\n\nnativeMessaging: the host is host/theme_host.py in the repository, installed by install.sh. It only sends {type: 'wallpaper_change', wallpaper: '<filename stem>'} to the extension; the extension sends nothing to it.\n\nHost access is optional and requested per site when the user adds a site (options page or popup). content.js is registered with contentScripts.register only for granted origins. No remote code, no network requests.\n\nTo test without the native host: Options → Sites & Mappings → add github.com and the mapping --bgColor-default → --theme-bg. Then open the toolbar popup, turn off 'Wallpaper Hook' and pick a built-in theme (e.g. Aurora or Latte); open github.com tabs change color."
+  }
+}
