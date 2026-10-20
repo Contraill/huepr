@@ -2,7 +2,7 @@
 # adds the new version to updates.json. Triggered by pushing a tag like v2.1.0
 # whose version matches manifest.json.
 #
-# Secrets live in the "amo" environment (Settings → Environments → amo),
+# Secrets live in the "huepr-release" environment (Settings → Environments),
 # limited to tags matching v*:
 #   AMO_API_KEY, AMO_API_SECRET  — https://addons.mozilla.org/developers/addon/api/key/
 #   RELEASE_TOKEN (optional)     — fine-grained token with "Contents: Read and write";
@@ -21,7 +21,7 @@ concurrency: release
 jobs:
   release:
     runs-on: ubuntu-latest
-    environment: amo
+    environment: huepr-release
     env:
       GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
     steps:
