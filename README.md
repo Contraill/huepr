@@ -1,21 +1,42 @@
 # Huepr
 
-Hyprland wallpaper changes → browser theme. Huepr listens for wallpaper events via Native Messaging and injects CSS custom properties into whitelisted sites in real time.
+Wallpaper changes → browser theme. Huepr listens for wallpaper events via Native Messaging and injects CSS custom properties into whitelisted sites in real time.
 
-Built for [Zen Browser](https://zen-browser.app) and Firefox on Hyprland + [Caelestia](https://github.com/caelestia-dots/caelestia).
+Built for [Zen Browser](https://zen-browser.app) and Firefox on Hyprland + [Caelestia](https://github.com/caelestia-dots/caelestia). Any other wallpaper tool can trigger it by calling `huepr-notify`.
+
+---
+
+## Screenshots
+
+The same GitHub page after two wallpaper changes, with no reload in between:
+
+| Wallpaper `Aurora.jpg` | Wallpaper `Latte.png` |
+| :---: | :---: |
+| ![GitHub themed with Aurora](screenshots/github-aurora.png) | ![GitHub themed with Latte](screenshots/github-latte.png) |
+
+| Sites & Mappings | Themes | Popup |
+| :---: | :---: | :---: |
+| ![Options — sites and mappings](screenshots/options-sites.png) | ![Options — themes](screenshots/options-themes.png) | ![Popup](screenshots/popup.png) |
 
 ---
 
 ## How it works
 
-```
-caelestia-wallhook → huepr-notify → huepr.pipe → theme_host.py → Native Messaging → background.js → content.js → CSS vars on :root
+```mermaid
+flowchart LR
+    hook["Wallpaper hook<br/>(caelestia-wallhook)"] -->|WALLPAPER_PATH| notify["huepr-notify"]
+    notify -->|writes path| pipe[("~/.cache/huepr/huepr.pipe")]
+    pipe -->|reads path| host["theme_host.py<br/>(native messaging host)"]
+    host -->|"{type: wallpaper_change,<br/>wallpaper: 'Aurora'}"| bg["background.js"]
+    bg -->|"apply_theme<br/>(whitelisted tabs only)"| cs["content.js"]
+    cs -->|"CSS vars on :root"| page["Web page"]
+    store[("browser.storage.local<br/>themes, sites, mappings")] --- bg
 ```
 
 1. Your wallpaper hook calls `huepr-notify` with the new wallpaper path.
-2. `theme_host.py` extracts the wallpaper filename stem (e.g. `/path/to/Aurora.jpg` → `Aurora`) and sends it to the extension via Native Messaging. The extension matches this name against your theme names.
-3. The extension injects CSS custom properties into every whitelisted site.
-4. Sites that map their own CSS variables to theme variables update instantly.
+2. The browser starts `theme_host.py` when the extension loads and keeps it running. The host reads the path from the named pipe, takes the filename stem (`/path/to/Aurora.jpg` → `Aurora`) and sends it to the extension over Native Messaging. Theme colors are not resolved in the host.
+3. `background.js` matches the name against your themes and sends the resolved variables to every whitelisted tab.
+4. `content.js` sets the variables on `:root`. Sites that use those variables update instantly.
 
 ---
 
@@ -24,13 +45,13 @@ caelestia-wallhook → huepr-notify → huepr.pipe → theme_host.py → Native 
 - **Wallpaper-driven theming** — theme switches automatically when your wallpaper changes
 - **Per-site CSS variable mapping** — map site variables (e.g. `--background`) to theme variables (e.g. `--theme-bg`)
 - **Per-site theme override** — pin a specific theme to a site regardless of wallpaper
-- **Custom CSS injection** — inject arbitrary CSS rules per theme (override hardcoded colors, SVG fills, etc.)
+- **Custom CSS injection** — inject arbitrary CSS rules per site (override hardcoded colors, SVG fills, etc.)
 - **Auto-detect site variables** — scan the active tab's stylesheets and pick variables to map
 - **Color extraction from image** — extract a palette from any image to seed a new theme
 - **Hook toggle** — disable wallpaper trigger and pick a theme manually
 - **Smooth transitions** — CSS transition injected on theme change, removed after 600ms
 - **Popup** — quick access to hook toggle, manual theme select, and "Add current site"
-- **Auto-update** — `huepr-update` re-fetches and re-installs from your git remote; optional systemd weekly timer
+- **Updates** — the signed extension updates through the browser; `huepr-update` refreshes the host scripts, with an opt-in weekly timer
 
 ---
 
@@ -42,24 +63,99 @@ cd huepr
 bash install.sh
 ```
 
-Restart your browser. The extension loads automatically.
+The installer downloads the latest **signed** XPI from [GitHub releases](https://github.com/Contraill/huepr/releases/latest) and places it in each Firefox / Zen profile it finds. Restart your browser and approve Huepr when it asks about the new add-on (or enable it in `about:addons`).
 
-> After installation the git directory can be deleted — extension files are copied to `~/.local/share/huepr/`.
+If no profile is found, install it by hand: `about:addons` → ⚙ → **Install Add-on From File** → `~/.local/share/huepr/huepr.xpi`.
+
+> After installation the git directory can be deleted — everything Huepr needs is copied to `~/.local/`.
+
+### Options
+
+| Flag | Effect |
+| --- | --- |
+| `--auto-update` | Installs and enables a weekly systemd user timer that runs `huepr-update`. Off by default, because it runs `install.sh` from the git remote unattended. |
+| `--dev` | For working on the extension: copies the unpacked source to `~/.local/share/huepr/extension` instead of installing the signed XPI. Load it through `about:debugging` → **Load Temporary Add-on**. Browser settings are not changed. |
 
 ### Requirements
 
-- Firefox or Zen Browser
+- Firefox or Zen Browser (see [Compatibility](#compatibility))
 - Python 3.8+
+- curl (downloads the signed XPI)
 - git (used by `huepr-update` to fetch updates)
-- [Caelestia](https://github.com/caelestia-dots/caelestia) with `caelestia-wallhook` (for automatic wallpaper trigger)
+- [Caelestia](https://github.com/caelestia-dots/caelestia) with `caelestia-wallhook` for the automatic wallpaper trigger — or add the `huepr-notify` line to your own hook
 
 ### Updating
+
+The extension updates itself through the browser (`update_url` → [`updates.json`](updates.json)). To update the native host and helper scripts:
 
 ```bash
 huepr-update
 ```
 
-Or let the systemd weekly timer handle it automatically (installed by default if systemd user instance is available).
+### Uninstalling
+
+Close the browser, then:
+
+```bash
+huepr-uninstall        # or: bash uninstall.sh from the repo
+```
+
+It reverses every change listed below and keeps backups of the files it edits. Themes and site mappings live in the browser's extension storage; remove the add-on in `about:addons` to delete them too.
+
+---
+
+## What Huepr changes on your system
+
+| Location | What | Removed by `huepr-uninstall` |
+| --- | --- | --- |
+| `~/.local/bin/huepr-theme-host` | Wrapper that starts the native host | ✓ |
+| `~/.local/bin/huepr-notify` | Writes the wallpaper path to the pipe | ✓ |
+| `~/.local/bin/huepr-update`, `huepr-uninstall` | Update / uninstall commands | ✓ |
+| `~/.local/share/huepr/` | `theme_host.py`, cached signed XPI (unpacked source with `--dev`) | ✓ |
+| `~/.mozilla/native-messaging-hosts/com.huepr.theme_host.json` | Native messaging manifest (also under `~/.zen/` if it exists) | ✓ |
+| `~/.cache/huepr/` | Named pipe `huepr.pipe` and `host.log` | ✓ |
+| `~/.config/huepr/config` | Git remote used by `huepr-update` | ✓ |
+| `<profile>/extensions/huepr@localhost.xpi` | The signed extension, in each Firefox / Zen profile | ✓ |
+| `caelestia-wallhook` | A comment and a `huepr-notify` line; backup saved as `caelestia-wallhook.huepr-bak` | ✓ (backup: `.huepr-uninstall-bak`) |
+| `~/.config/systemd/user/huepr-update.{service,timer}` | Only with `--auto-update` | ✓ |
+
+Browser preferences are **not** changed. Older versions of `install.sh` (up to the v2.0.3 release) added `user_pref("xpinstall.signatures.required", false);` to each profile's `user.js` and loaded the extension unpacked. Running the current `install.sh` or `huepr-uninstall` removes that line and the old proxy file (keeping `user.js.huepr-bak`). The value may already have been copied into `prefs.js`, so also reset `xpinstall.signatures.required` in `about:config`.
+
+---
+
+## Permissions
+
+| Permission | Why |
+| --- | --- |
+| `nativeMessaging` | Receives wallpaper events from `theme_host.py`. The host only sends the wallpaper name; the extension never sends page data to it. |
+| `storage` | Keeps themes, whitelisted sites, mappings and custom CSS in `browser.storage.local`. |
+| `tabs` | Reads tab URLs to find whitelisted tabs, sends them theme updates and finds the active tab for **Add current site** and **Detect**. |
+| `<all_urls>` + content script on `<all_urls>` | The whitelist is chosen at runtime and can contain any hostname, so the content script has to be able to run on any site. |
+
+What the content script does on a page:
+
+- On load it asks `background.js` for a theme. For a site that is not whitelisted the answer is empty and the page is left untouched.
+- On whitelisted sites it sets CSS variables on `:root` and, if configured, adds a `<style>` element with your custom CSS.
+- **Detect** reads CSS variable *names* from the page's stylesheets, and only when you press it.
+
+Huepr makes no network requests and sends no page content anywhere. Requesting site access per hostname (optional permissions) would narrow `<all_urls>`, but every existing whitelist entry would then need to be approved again.
+
+---
+
+## Compatibility
+
+- **Browsers:** Firefox 91+ (`strict_min_version` in the manifest) and Zen Browser. The installer finds profiles in `~/.mozilla/firefox`, `~/.config/mozilla/firefox`, `~/.zen` and `~/.config/zen`.
+- **OS:** Linux only (named pipe, `~/.local` and `~/.mozilla` paths).
+- **Extension format:** Manifest V2 WebExtension. Chromium-based browsers are not supported.
+
+Known limits:
+
+- Flatpak and Snap browser builds are sandboxed and cannot start a native host from `~/.local/bin`; the installer does not configure them.
+- Release builds of Firefox only load signed add-ons. Use the signed XPI, or `--dev` with `about:debugging` while developing.
+- Content scripts do not run on `about:` pages, `addons.mozilla.org` or other restricted pages.
+- Sites that do not use CSS variables need custom CSS rules. A site's own `!important` rules inside CSS cascade layers win over custom CSS rules, even when those are `!important`.
+- **Detect** cannot read cross-origin stylesheets that block CORS.
+- If the native host cannot be reached, the extension retries 10 times, 5 seconds apart. The last theme stays applied, and manual theme selection keeps working. Restart the browser to reconnect after that.
 
 ---
 
@@ -71,25 +167,33 @@ Open the popup (click the Huepr icon) → **Add current site**, or go to **Optio
 
 ### 2. Create a theme
 
-**Options → Themes** → type a name → **Add Theme**. The theme name must match (part of) your wallpaper filename for automatic switching.
+**Options → Themes** → type a name → **Add Theme**. The theme name must match your wallpaper filename stem for automatic switching (`Aurora.jpg` → theme `Aurora`).
 
 Add variables to the theme — e.g. `--theme-bg: #1e1e2e`, `--theme-accent: #cba6f7`.
 
 ### 3. Map site variables to theme variables
 
 In **Sites & Mappings**, select a site. Add a mapping:
-- **Site variable** — the CSS variable the site uses (e.g. `--background-color`)
+- **Site variable** — the CSS variable the site uses (e.g. `--bgColor-default` on GitHub)
 - **Theme variable** — the theme variable to pull the value from (e.g. `--theme-bg`)
 
 Use **Detect** to scan the active tab's stylesheets and find variables automatically.
 
 ### 4. Optional: Custom CSS
 
-In **Themes**, select a theme and add custom CSS to override hardcoded colors:
+In **Sites & Mappings**, select a site and add custom CSS rules to override hardcoded colors:
 
 ```css
 /* Override YouTube logo red */
 path[fill="#FF0033"] { fill: var(--theme-accent) !important; }
+```
+
+### Using another wallpaper tool
+
+Call `huepr-notify` from whatever runs after a wallpaper change:
+
+```bash
+WALLPAPER_PATH="/path/to/Aurora.jpg" ~/.local/bin/huepr-notify
 ```
 
 ---
@@ -97,7 +201,8 @@ path[fill="#FF0033"] { fill: var(--theme-accent) !important; }
 ## Project structure
 
 ```
-install.sh          — installer: copies files, sets up NM host, patches wallhook
+install.sh          — installer: NM host, helper scripts, signed XPI, wallpaper hook
+uninstall.sh        — reverts everything install.sh did (installed as huepr-uninstall)
 manifest.json       — WebExtension manifest (MV2)
 background.js       — background page: NM connection, theme resolution, message routing
 content.js          — content script: CSS variable + custom CSS injection
@@ -106,6 +211,8 @@ options/            — options page (themes, sites & mappings, help)
 host/
   theme_host.py     — native messaging host: reads pipe, sends theme to extension
 icons/              — extension icons
+screenshots/        — README images
+updates.json        — update manifest for the signed XPI releases
 ```
 
 ---
@@ -131,16 +238,19 @@ When active, all theme variables are injected into `:root` on whitelisted sites.
 --site-link-color  →  value of --theme-accent
 ```
 
+Aurora, Sunset, Latte and Frappe ship as built-in presets; a theme with the same name in Options overrides their variables.
+
 ---
 
 ## Troubleshooting
 
 **Extension icon doesn't appear**
-Check `about:debugging` → This Firefox → Extensions to verify Huepr is loaded. In `about:config`, confirm `xpinstall.signatures.required` is `false`.
+Check `about:addons` — sideloaded add-ons stay disabled until you approve them. `about:debugging` → This Firefox lists every loaded extension.
 
 **Theme doesn't switch on wallpaper change**
-- Verify `caelestia-wallhook` is patched: `grep huepr-notify ~/.local/bin/caelestia-wallhook`
-- Verify the native host is running: `about:debugging` → Huepr → Inspect → check the background console for connection messages
+- Verify the hook is patched: `grep huepr-notify ~/.local/bin/caelestia-wallhook`
+- Check `~/.cache/huepr/host.log` — every received wallpaper event is logged there
+- `about:debugging` → Huepr → Inspect → check the background console for connection messages
 
 **CSS variables not applying**
 Open Options → Sites & Mappings → confirm the site is whitelisted and has mappings. Use the **Detect** button to find available CSS variables on the active tab.
@@ -152,4 +262,4 @@ Check that `~/.config/huepr/config` contains a valid `REPO_URL` pointing to a gi
 
 ## License
 
-MIT
+[MIT](LICENSE)
