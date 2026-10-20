@@ -47,7 +47,8 @@ NM_DIR="$HOME/.mozilla/native-messaging-hosts"
 EXT_DEST="$HOME/.local/share/huepr/extension"
 EXT_ID="huepr@localhost"
 XPI_CACHE="$HOME/.local/share/huepr/huepr.xpi"
-RELEASE_API="https://api.github.com/repos/Contraill/huepr/releases/latest"
+# Newest release first; a release waiting for Mozilla approval has no XPI yet.
+RELEASE_API="https://api.github.com/repos/Contraill/huepr/releases?per_page=20"
 RELEASES_PAGE="https://github.com/Contraill/huepr/releases/latest"
 # Written by older installers; removed again on install/uninstall.
 LEGACY_SIG_PREF='user_pref("xpinstall.signatures.required", false);'
@@ -154,15 +155,15 @@ step "Deploying extension files"
 # 6a. Get the extension: signed release XPI by default, unpacked copy with --dev
 XPI_READY=0
 
-# Fetch the latest signed XPI from GitHub releases.
+# Fetch the newest signed XPI from GitHub releases.
 # shortcut: only checks that signature files exist; the browser does the real
 # signature verification and refuses the XPI if it is invalid.
 download_signed_xpi() {
   local url
   url="$(curl -fsSL "$RELEASE_API" | python3 -c '
 import json, sys
-assets = json.load(sys.stdin).get("assets", [])
-print(next(a["browser_download_url"] for a in assets if a["name"].endswith(".xpi")))
+print(next(a["browser_download_url"] for r in json.load(sys.stdin)
+           for a in r["assets"] if a["name"].endswith(".xpi")))
 ')" || return 1
   curl -fsSL -o "$XPI_CACHE.tmp" "$url" || return 1
   python3 - "$XPI_CACHE.tmp" "$EXT_ID" <<'PY' || { rm -f "$XPI_CACHE.tmp"; return 1; }
