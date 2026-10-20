@@ -216,8 +216,23 @@ host/
 icons/              — extension icons
 screenshots/        — README images
 updates.json        — update manifest for the signed XPI releases
+.github/workflows/  — release workflow (sign on AMO, publish release, update updates.json)
 web-ext-config.mjs  — keeps non-extension files out of the XPI (web-ext build / sign)
 ```
+
+---
+
+## Releasing
+
+Releases are built by [`.github/workflows/release.yml`](.github/workflows/release.yml). It needs the repository secrets `AMO_API_KEY` and `AMO_API_SECRET` ([AMO API key](https://addons.mozilla.org/developers/addon/api/key/)).
+
+1. Bump `version` in `manifest.json` and commit it to `main`.
+2. Push an annotated tag; its message becomes the release notes:
+   ```bash
+   git tag -a v2.1.0 -m "release notes…" && git push origin v2.1.0
+   ```
+
+The workflow signs the extension on AMO (unlisted channel), attaches `huepr-<version>.xpi` to the release and adds the version to `updates.json`, from where installed browsers pick up the update.
 
 ---
 

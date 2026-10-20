@@ -1,0 +1,87 @@
+# Signs the extension on AMO (unlisted), publishes the GitHub release and
+# adds the new version to updates.json. Triggered by pushing a tag like v2.1.0
+# whose version matches manifest.json.
+#
+# Repository secrets:
+#   AMO_API_KEY, AMO_API_SECRET  — https://addons.mozilla.org/developers/addon/api/key/
+#   RELEASE_TOKEN (optional)     — fine-grained token with "Contents: write";
+#                                  makes the release show your account instead of github-actions
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+concurrency: release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN || github.token }}
+
+      - name: Check tag matches manifest version
+        run: |
+          VERSION="$(jq -r .version manifest.json)"
+          if [[ "v$VERSION" != "$GITHUB_REF_NAME" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match manifest.json version $VERSION"
+            exit 1
+          fi
+          git fetch origin main
+          git merge-base --is-ancestor HEAD origin/main \
+            || { echo "::error::Tag $GITHUB_REF_NAME is not on main"; exit 1; }
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Sign on AMO (unlisted)
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.AMO_API_KEY }}
+          WEB_EXT_API_SECRET: ${{ secrets.AMO_API_SECRET }}
+        run: |
+          npx --yes web-ext@8 sign --source-dir . --artifacts-dir dist \
+            --channel unlisted --approval-timeout 1800000
+          XPI="huepr-$VERSION.xpi"
+          mv dist/*.xpi "$XPI"
+          unzip -l "$XPI" | grep -q "META-INF/cose.sig" \
+            || { echo "::error::$XPI is not signed"; exit 1; }
+          echo "XPI=$XPI" >> "$GITHUB_ENV"
+
+      - name: Publish GitHub release
+        run: gh release create "$GITHUB_REF_NAME" "$XPI" --title "$GITHUB_REF_NAME" --notes-from-tag
+
+      - name: Add version to updates.json
+        run: |
+          AUTHOR_NAME="$(git log -1 --format=%an)"
+          AUTHOR_EMAIL="$(git log -1 --format=%ae)"
+          git checkout -B main origin/main
+          python3 - "$VERSION" "$GITHUB_REPOSITORY" <<'PY'
+          import json, sys
+          version, repo = sys.argv[1], sys.argv[2]
+          with open("updates.json") as f:
+              data = json.load(f)
+          updates = data["addons"]["huepr@localhost"]["updates"]
+          if not any(u["version"] == version for u in updates):
+              updates.append({
+                  "version": version,
+                  "update_link": f"https://github.com/{repo}/releases/download/v{version}/huepr-{version}.xpi",
+              })
+          with open("updates.json", "w") as f:
+              json.dump(data, f, indent=2)
+              f.write("\n")
+          PY
+          if git diff --quiet updates.json; then exit 0; fi
+          git add updates.json
+          git -c user.name="$AUTHOR_NAME" -c user.email="$AUTHOR_EMAIL" \
+            commit -m "release v$VERSION: add to updates.json"
+          git push origin main
