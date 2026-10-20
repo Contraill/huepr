@@ -1,13 +1,15 @@
 {
   "manifest_version": 2,
   "name": "Huepr",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Hyprland wallpaper changes inject CSS variables into whitelisted sites via Native Messaging.",
   "browser_specific_settings": {
     "gecko": {
       "id": "huepr@localhost",
       "strict_min_version": "91.0",
-      "update_url": "https://raw.githubusercontent.com/Contraill/huepr/main/updates.json"
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
     }
   },
   "permissions": [
