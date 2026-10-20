@@ -51,6 +51,10 @@ jobs:
           WEB_EXT_API_KEY: ${{ secrets.AMO_API_KEY }}
           WEB_EXT_API_SECRET: ${{ secrets.AMO_API_SECRET }}
         run: |
+          # AMO credentials never contain whitespace; drop any pasted along.
+          WEB_EXT_API_KEY="$(printf %s "$WEB_EXT_API_KEY" | tr -d '[:space:]')"
+          WEB_EXT_API_SECRET="$(printf %s "$WEB_EXT_API_SECRET" | tr -d '[:space:]')"
+          export WEB_EXT_API_KEY WEB_EXT_API_SECRET
           npx --yes web-ext@8 sign --source-dir . --artifacts-dir dist \
             --channel unlisted --approval-timeout 1800000
           XPI="huepr-$VERSION.xpi"
