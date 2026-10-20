@@ -130,15 +130,18 @@ Browser preferences are **not** changed. Older versions of `install.sh` (up to t
 | `nativeMessaging` | Receives wallpaper events from `theme_host.py`. The host only sends the wallpaper name; the extension never sends page data to it. |
 | `storage` | Keeps themes, whitelisted sites, mappings and custom CSS in `browser.storage.local`. |
 | `tabs` | Reads tab URLs to find whitelisted tabs, sends them theme updates and finds the active tab for **Add current site** and **Detect**. |
-| `<all_urls>` + content script on `<all_urls>` | The whitelist is chosen at runtime and can contain any hostname, so the content script has to be able to run on any site. |
+| Site access (optional) | Requested **per site** when you add it — `*://github.com/*` and `*://www.github.com/*` for `github.com`. Removing a site gives the access back. |
 
-What the content script does on a page:
+The manifest lists `<all_urls>` only under `optional_permissions`, as the upper bound of what can be requested. A new install starts with access to no website. `content.js` is registered at runtime for the granted sites only, and is injected into tabs that are already open when access is granted.
 
-- On load it asks `background.js` for a theme. For a site that is not whitelisted the answer is empty and the page is left untouched.
-- On whitelisted sites it sets CSS variables on `:root` and, if configured, adds a `<style>` element with your custom CSS.
+What the content script does on a granted site:
+
+- On load it asks `background.js` for a theme and sets the CSS variables on `:root`. If you configured custom CSS, it also adds a `<style>` element.
 - **Detect** reads CSS variable *names* from the page's stylesheets, and only when you press it.
 
-Huepr makes no network requests and sends no page content anywhere. Requesting site access per hostname (optional permissions) would narrow `<all_urls>`, but every existing whitelist entry would then need to be approved again.
+Huepr makes no network requests and sends no page content anywhere.
+
+**Upgrading from 2.0.x:** `<all_urls>` was a required permission before 2.1.0. The browser keeps it granted after the update, so your sites keep working. To switch to per-site access, turn off "Access your data for all websites" under `about:addons` → Huepr → Permissions. Then click **Grant** next to each site in Options → Sites & Mappings.
 
 ---
 
@@ -152,7 +155,7 @@ Known limits:
 
 - Flatpak and Snap browser builds are sandboxed and cannot start a native host from `~/.local/bin`; the installer does not configure them.
 - Release builds of Firefox only load signed add-ons. Use the signed XPI, or `--dev` with `about:debugging` while developing.
-- Content scripts do not run on `about:` pages, `addons.mozilla.org` or other restricted pages.
+- Content scripts do not run on `about:` pages, `addons.mozilla.org` or other restricted pages, and site access can only be requested for `http`/`https` sites.
 - Sites that do not use CSS variables need custom CSS rules. A site's own `!important` rules inside CSS cascade layers win over custom CSS rules, even when those are `!important`.
 - **Detect** cannot read cross-origin stylesheets that block CORS.
 - If the native host cannot be reached, the extension retries 10 times, 5 seconds apart. The last theme stays applied, and manual theme selection keeps working. Restart the browser to reconnect after that.
@@ -163,7 +166,7 @@ Known limits:
 
 ### 1. Add a site
 
-Open the popup (click the Huepr icon) → **Add current site**, or go to **Options → Sites & Mappings** and type a hostname.
+Open the popup (click the Huepr icon) → **Add current site**, or go to **Options → Sites & Mappings** and type a hostname. Allow access when the browser asks — Huepr only gets access to that site.
 
 ### 2. Create a theme
 
@@ -213,6 +216,7 @@ host/
 icons/              — extension icons
 screenshots/        — README images
 updates.json        — update manifest for the signed XPI releases
+web-ext-config.mjs  — keeps non-extension files out of the XPI (web-ext build / sign)
 ```
 
 ---
@@ -253,7 +257,7 @@ Check `about:addons` — sideloaded add-ons stay disabled until you approve them
 - `about:debugging` → Huepr → Inspect → check the background console for connection messages
 
 **CSS variables not applying**
-Open Options → Sites & Mappings → confirm the site is whitelisted and has mappings. Use the **Detect** button to find available CSS variables on the active tab.
+Open Options → Sites & Mappings → confirm the site is whitelisted and has mappings. A **Grant** button next to a site means Huepr has no access to it yet. Use the **Detect** button to find available CSS variables on the active tab.
 
 **`huepr-update` fails**
 Check that `~/.config/huepr/config` contains a valid `REPO_URL` pointing to a git remote.
