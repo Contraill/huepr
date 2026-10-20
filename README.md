@@ -51,11 +51,13 @@ flowchart LR
 - **Hook toggle** — disable wallpaper trigger and pick a theme manually
 - **Smooth transitions** — CSS transition injected on theme change, removed after 600ms
 - **Popup** — quick access to hook toggle, manual theme select, and "Add current site"
-- **Updates** — the signed extension updates through the browser; `huepr-update` refreshes the host scripts, with an opt-in weekly timer
+- **Updates** — the extension updates through [addons.mozilla.org](https://addons.mozilla.org/firefox/addon/huepr/); `huepr-update` refreshes the host scripts, with an opt-in weekly timer
 
 ---
 
 ## Installation
+
+The extension is on [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/huepr/). It needs the native host from this repository to receive wallpaper events:
 
 ```bash
 git clone https://github.com/Contraill/huepr
@@ -63,7 +65,7 @@ cd huepr
 bash install.sh
 ```
 
-The installer downloads the latest **signed** XPI from [GitHub releases](https://github.com/Contraill/huepr/releases/latest) and places it in each Firefox / Zen profile it finds. Restart your browser and approve Huepr when it asks about the new add-on (or enable it in `about:addons`).
+The installer sets up the native host and also puts the newest **signed** XPI from [GitHub releases](https://github.com/Contraill/huepr/releases) (the same file Mozilla signed for addons.mozilla.org) into each Firefox / Zen profile it finds. Restart your browser and approve Huepr when it asks about the new add-on (or enable it in `about:addons`).
 
 If no profile is found, install it by hand: `about:addons` → ⚙ → **Install Add-on From File** → `~/.local/share/huepr/huepr.xpi`.
 
@@ -86,7 +88,7 @@ If no profile is found, install it by hand: `about:addons` → ⚙ → **Install
 
 ### Updating
 
-The extension updates itself through the browser (`update_url` → [`updates.json`](updates.json)). To update the native host and helper scripts:
+From 2.2.0 on, the extension gets updates from addons.mozilla.org, like any other add-on. Versions up to 2.1.0 checked [`updates.json`](updates.json) instead; it points them to 2.2.0, after which they follow addons.mozilla.org too. To update the native host and helper scripts:
 
 ```bash
 huepr-update
@@ -139,7 +141,7 @@ What the content script does on a granted site:
 - On load it asks `background.js` for a theme and sets the CSS variables on `:root`. If you configured custom CSS, it also adds a `<style>` element.
 - **Detect** reads CSS variable *names* from the page's stylesheets, and only when you press it.
 
-Huepr makes no network requests and sends no page content anywhere.
+Huepr makes no network requests and sends no page content anywhere. The manifest declares this to Firefox with `data_collection_permissions: none`.
 
 **Upgrading from 2.0.x:** `<all_urls>` was a required permission before 2.1.0. The browser keeps it granted after the update, so your sites keep working. To switch to per-site access, turn off "Access your data for all websites" under `about:addons` → Huepr → Permissions. Then click **Grant** next to each site in Options → Sites & Mappings.
 
@@ -215,8 +217,9 @@ host/
   theme_host.py     — native messaging host: reads pipe, sends theme to extension
 icons/              — extension icons
 screenshots/        — README images
-updates.json        — update manifest for the signed XPI releases
-.github/workflows/  — release workflow (sign on AMO, publish release, update updates.json)
+updates.json        — update manifest for installs up to 2.1.0 (self-distributed)
+amo-metadata.json   — addons.mozilla.org listing text, category, license, reviewer notes
+.github/workflows/  — release.yml (submit to AMO, open release), publish-approved.yml (attach signed XPI)
 web-ext-config.mjs  — keeps non-extension files out of the XPI (web-ext build / sign)
 ```
 
@@ -224,15 +227,15 @@ web-ext-config.mjs  — keeps non-extension files out of the XPI (web-ext build 
 
 ## Releasing
 
-Releases are built by [`.github/workflows/release.yml`](.github/workflows/release.yml). It reads `AMO_API_KEY` and `AMO_API_SECRET` ([AMO API key](https://addons.mozilla.org/developers/addon/api/key/)) and the optional `RELEASE_TOKEN` from the `huepr-release` environment, which only `v*` tags can use.
-
 1. Bump `version` in `manifest.json` and commit it to `main`.
-2. Push an annotated tag; its message becomes the release notes:
+2. Push an annotated tag; its message becomes the release notes on GitHub and addons.mozilla.org:
    ```bash
-   git tag -a v2.1.0 -m "release notes…" && git push origin v2.1.0
+   git tag -a v2.2.0 -m "v2.2.0" -m "- what changed" && git push origin v2.2.0
    ```
 
-The workflow signs the extension on AMO (unlisted channel), attaches `huepr-<version>.xpi` to the release and adds the version to `updates.json`, from where installed browsers pick up the update.
+[`release.yml`](.github/workflows/release.yml) then submits the version to addons.mozilla.org (listed channel) with the listing text from [`amo-metadata.json`](amo-metadata.json), and opens the GitHub release. It reads `AMO_API_KEY` and `AMO_API_SECRET` ([AMO API key](https://addons.mozilla.org/developers/addon/api/key/)) and the optional `RELEASE_TOKEN` from the `huepr-release` environment, which only `v*` tags can use.
+
+Mozilla reviews the version before signing it. [`publish-approved.yml`](.github/workflows/publish-approved.yml) checks every 3 hours (or on demand from the Actions tab). Once the version is approved, it attaches the signed `huepr-<version>.xpi` to the GitHub release and adds the version to `updates.json`.
 
 ---
 
