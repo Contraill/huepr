@@ -224,7 +224,7 @@ web-ext-config.mjs  — keeps non-extension files out of the XPI (web-ext build 
 
 ## Releasing
 
-Releases are built by [`.github/workflows/release.yml`](.github/workflows/release.yml). It needs the repository secrets `AMO_API_KEY` and `AMO_API_SECRET` ([AMO API key](https://addons.mozilla.org/developers/addon/api/key/)).
+Releases are built by [`.github/workflows/release.yml`](.github/workflows/release.yml). It reads `AMO_API_KEY` and `AMO_API_SECRET` ([AMO API key](https://addons.mozilla.org/developers/addon/api/key/)) and the optional `RELEASE_TOKEN` from the `amo` environment, which only `v*` tags can use.
 
 1. Bump `version` in `manifest.json` and commit it to `main`.
 2. Push an annotated tag; its message becomes the release notes:
