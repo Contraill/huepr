@@ -1,0 +1,70 @@
+# Attaches Mozilla-approved XPIs to their GitHub releases and adds them to
+# updates.json (which 2.1.0 and older installs still poll for updates).
+# Uses the public AMO API, so no secrets are needed.
+name: Publish approved versions
+
+on:
+  schedule:
+    - cron: "17 */3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency: release
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      AMO_VERSIONS: https://addons.mozilla.org/api/v5/addons/addon/huepr@localhost/versions/?page_size=50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Attach approved XPIs
+        run: |
+          # Public listed versions; the API answers 401 until the listing is public.
+          if ! curl -fsS "$AMO_VERSIONS" -o amo-versions.json; then
+            echo "No public listed versions yet"; exit 0
+          fi
+
+          for tag in $(gh release list --limit 20 --json tagName -q '.[].tagName'); do
+            version="${tag#v}"
+            xpi="huepr-$version.xpi"
+            gh release view "$tag" --json assets -q '.assets[].name' | grep -qx "$xpi" && continue
+
+            url="$(jq -r --arg v "$version" \
+              '.results[] | select(.version == $v and .file.status == "public") | .file.url' amo-versions.json)"
+            if [[ -z "$url" ]]; then echo "$tag: not approved yet"; continue; fi
+
+            curl -fsSL -o "$xpi" "$url"
+            unzip -l "$xpi" | grep -q "META-INF/cose.sig" || { echo "::error::$xpi is not signed"; exit 1; }
+            gh release upload "$tag" "$xpi"
+            echo "$tag: attached $xpi"
+
+            python3 - "$version" "$GITHUB_REPOSITORY" <<'PY'
+          import json, sys
+          version, repo = sys.argv[1], sys.argv[2]
+          with open("updates.json") as f:
+              data = json.load(f)
+          updates = data["addons"]["huepr@localhost"]["updates"]
+          if not any(u["version"] == version for u in updates):
+              updates.append({
+                  "version": version,
+                  "update_link": f"https://github.com/{repo}/releases/download/v{version}/huepr-{version}.xpi",
+              })
+          with open("updates.json", "w") as f:
+              json.dump(data, f, indent=2)
+              f.write("\n")
+          PY
+            if ! git diff --quiet updates.json; then
+              git add updates.json
+              git -c user.name="$(git log -1 --format=%an "$tag")" \
+                  -c user.email="$(git log -1 --format=%ae "$tag")" \
+                  commit -m "release $tag: add to updates.json"
+              git push origin HEAD:main
+            fi
+          done

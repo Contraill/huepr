@@ -1,9 +1,9 @@
-# Signs the extension on AMO (unlisted), publishes the GitHub release and
-# adds the new version to updates.json. Triggered by pushing a tag like v2.1.0
-# whose version matches manifest.json.
+# Submits a new version to addons.mozilla.org (listed channel) and opens the
+# GitHub release. Triggered by pushing an annotated tag like v2.2.0 whose
+# version matches manifest.json; the tag message becomes the release notes.
+# The signed XPI is attached by publish-approved.yml once Mozilla approves it.
 #
-# Secrets live in the "huepr-release" environment (Settings → Environments),
-# limited to tags matching v*:
+# Secrets live in the "huepr-release" environment (Settings → Environments):
 #   AMO_API_KEY, AMO_API_SECRET  — https://addons.mozilla.org/developers/addon/api/key/
 #   RELEASE_TOKEN (optional)     — fine-grained token with "Contents: Read and write";
 #                                  makes the release show your account instead of github-actions
@@ -28,7 +28,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.RELEASE_TOKEN || github.token }}
 
       - name: Check tag matches manifest version
         run: |
@@ -42,11 +41,24 @@ jobs:
             || { echo "::error::Tag $GITHUB_REF_NAME is not on main"; exit 1; }
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
+      - name: Release notes from the tag message
+        run: |
+          # checkout can store the tag as lightweight; fetch the annotated tag object
+          git fetch --force origin "refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
+          git tag -l --format='%(contents:body)' "$GITHUB_REF_NAME" > notes.md
+          [[ -s notes.md ]] || { echo "::error::Tag $GITHUB_REF_NAME has no message (use git tag -a)"; exit 1; }
+          python3 - <<'PY'
+          import json
+          meta = json.load(open("amo-metadata.json"))
+          meta["version"]["release_notes"] = {"en-US": open("notes.md").read().strip()}
+          json.dump(meta, open("amo-metadata.release.json", "w"))
+          PY
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Sign on AMO (unlisted)
+      - name: Submit to AMO (listed)
         env:
           WEB_EXT_API_KEY: ${{ secrets.AMO_API_KEY }}
           WEB_EXT_API_SECRET: ${{ secrets.AMO_API_SECRET }}
@@ -55,39 +67,12 @@ jobs:
           WEB_EXT_API_KEY="$(printf %s "$WEB_EXT_API_KEY" | tr -d '[:space:]')"
           WEB_EXT_API_SECRET="$(printf %s "$WEB_EXT_API_SECRET" | tr -d '[:space:]')"
           export WEB_EXT_API_KEY WEB_EXT_API_SECRET
+          # Listed versions are signed after review, so don't wait for the file.
           npx --yes web-ext@8 sign --source-dir . --artifacts-dir dist \
-            --channel unlisted --approval-timeout 1800000
-          XPI="huepr-$VERSION.xpi"
-          mv dist/*.xpi "$XPI"
-          unzip -l "$XPI" | grep -q "META-INF/cose.sig" \
-            || { echo "::error::$XPI is not signed"; exit 1; }
-          echo "XPI=$XPI" >> "$GITHUB_ENV"
+            --channel listed --amo-metadata amo-metadata.release.json \
+            --approval-timeout 0
 
-      - name: Publish GitHub release
-        run: gh release create "$GITHUB_REF_NAME" "$XPI" --title "$GITHUB_REF_NAME" --notes-from-tag
-
-      - name: Add version to updates.json
+      - name: Open GitHub release
         run: |
-          AUTHOR_NAME="$(git log -1 --format=%an)"
-          AUTHOR_EMAIL="$(git log -1 --format=%ae)"
-          git checkout -B main origin/main
-          python3 - "$VERSION" "$GITHUB_REPOSITORY" <<'PY'
-          import json, sys
-          version, repo = sys.argv[1], sys.argv[2]
-          with open("updates.json") as f:
-              data = json.load(f)
-          updates = data["addons"]["huepr@localhost"]["updates"]
-          if not any(u["version"] == version for u in updates):
-              updates.append({
-                  "version": version,
-                  "update_link": f"https://github.com/{repo}/releases/download/v{version}/huepr-{version}.xpi",
-              })
-          with open("updates.json", "w") as f:
-              json.dump(data, f, indent=2)
-              f.write("\n")
-          PY
-          if git diff --quiet updates.json; then exit 0; fi
-          git add updates.json
-          git -c user.name="$AUTHOR_NAME" -c user.email="$AUTHOR_EMAIL" \
-            commit -m "release v$VERSION: add to updates.json"
-          git push origin main
+          printf '\n\n_The signed `huepr-%s.xpi` is attached here once Mozilla approves this version on addons.mozilla.org._\n' "$VERSION" >> notes.md
+          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md
