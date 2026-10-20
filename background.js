@@ -1,6 +1,6 @@
 "use strict";
 
-const DEBUG = true;
+const DEBUG = false;
 const log   = (...a) => DEBUG && console.log(...a);
 
 const NATIVE_HOST = "com.huepr.theme_host";
@@ -127,9 +127,8 @@ function connectNative() {
     _applyDebounce = setTimeout(() => applyThemeToAllTabs(), 100);
   });
 
-  port.onDisconnect.addListener(() => {
-    const err = browser.runtime.lastError;
-    console.warn("[huepr] host disconnected:", err?.message ?? "unknown");
+  port.onDisconnect.addListener((p) => {
+    console.warn("[huepr] host disconnected:", p.error?.message ?? "unknown");
     port = null;
     if (_retries++ < MAX_RETRIES) setTimeout(connectNative, 5000);
     else console.error('[huepr] native host connection failed, giving up.');
@@ -242,16 +241,8 @@ browser.runtime.onMessage.addListener(async (msg, sender) => {
   }
 
   if (msg.type === "add_site") {
-    const { hostname } = msg;
-    const { whitelist, mappings } = await browser.storage.local.get({
-      whitelist: [], mappings: {},
-    });
-    if (!whitelist.includes(hostname)) {
-      whitelist.push(hostname);
-      if (!mappings[hostname]) mappings[hostname] = {};
-      await browser.storage.local.set({ whitelist, mappings });
-    }
-    return { added: whitelist.includes(hostname) };
+    await addSites([msg.hostname]);
+    return { added: true };
   }
 
   if (msg.type !== "get_theme") return;
@@ -264,6 +255,61 @@ browser.runtime.onMessage.addListener(async (msg, sender) => {
   const { cssVars, managedVars, customCSS } = resolveForHost(host, mappings, themes, siteThemes, siteCSS);
   return { type: "apply_theme", cssVars, managedVars, customCSS };
 });
+
+// ── Site access (optional host permissions) ───────────────────────────────────
+// Host access is granted per site when it is added (options page or popup).
+// content.js is registered only for the granted origins.
+
+let _contentScript = null;
+let _registerChain = Promise.resolve();
+
+function registerContentScript() {
+  _registerChain = _registerChain.then(async () => {
+    const { origins } = await browser.permissions.getAll();
+    const matches = origins.filter(o => o === "<all_urls>" || /^(\*|https?):\/\//.test(o));
+    await _contentScript?.unregister();
+    _contentScript = matches.length
+      ? await browser.contentScripts.register({ matches, js: [{ file: "content.js" }], runAt: "document_idle" })
+      : null;
+    log('[huepr] content script registered for:', matches);
+  }).catch(e => console.error('[huepr] content script registration failed:', e));
+  return _registerChain;
+}
+
+// "*://www.github.com/*" → "github.com"; wildcard hosts → null
+function hostOfOrigin(origin) {
+  const m = /^[^:]+:\/\/([^/]+)\//.exec(origin);
+  if (!m || m[1].includes("*")) return null;
+  return m[1].startsWith("www.") ? m[1].slice(4) : m[1];
+}
+
+async function addSites(hosts) {
+  const { whitelist, mappings } = await browser.storage.local.get({
+    whitelist: [], mappings: {},
+  });
+  const added = hosts.filter(h => h && !whitelist.includes(h));
+  if (!added.length) return;
+  for (const h of new Set(added)) {
+    whitelist.push(h);
+    mappings[h] ??= {};
+  }
+  await browser.storage.local.set({ whitelist, mappings });
+}
+
+// The popup can close while the permission prompt is open, so the site is
+// whitelisted here once access is granted.
+browser.permissions.onAdded.addListener(async ({ origins = [] }) => {
+  await registerContentScript();
+  await addSites(origins.map(hostOfOrigin));
+  // Already-open tabs did not get the content script; inject it now.
+  const urls = origins.filter(o => hostOfOrigin(o));
+  if (!urls.length) return;
+  for (const tab of await browser.tabs.query({ url: urls })) {
+    browser.tabs.executeScript(tab.id, { file: "content.js", runAt: "document_idle" }).catch(() => {});
+  }
+});
+
+browser.permissions.onRemoved.addListener(() => registerContentScript());
 
 // Re-apply theme when a tab finishes loading
 browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
@@ -305,6 +351,8 @@ function hostnameOf(url) {
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
+
+registerContentScript();
 
 (async () => {
   // Restore currentWallpaper from storage so themes survive extension restart

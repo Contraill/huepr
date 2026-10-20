@@ -30,9 +30,7 @@ function toast(msg, type = "ok") {
   manualRow.style.display = status.hookEnabled ? "none" : "";
 
   // Populate theme select
-  sel.innerHTML = status.themes
-    .map(n => `<option value="${n}"${n === status.manualTheme ? " selected" : ""}>${n}</option>`)
-    .join("");
+  sel.replaceChildren(...status.themes.map(n => new Option(n, n, false, n === status.manualTheme)));
 
   // Hook toggle: writing hookEnabled to storage triggers background.js
   // storage.onChanged, which debounces a re-apply to all tabs.
@@ -46,34 +44,24 @@ function toast(msg, type = "ok") {
     await browser.storage.local.set({ manualTheme: sel.value });
   });
 
-  // Add current site button
+  // Add current site button. The active tab is looked up before the click:
+  // permissions.request() must run directly in the click handler.
+  const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+  let host = null;
+  try {
+    const u = new URL(tab?.url ?? "");
+    if (/^https?:$/.test(u.protocol)) host = u.hostname.replace(/^www\./, "");
+  } catch { /* not a web page */ }
+
   document.getElementById("btn-add-site").addEventListener("click", async () => {
-    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-    if (!tab?.url) { toast("No active tab", "err"); return; }
-
-    let host;
-    try {
-      const h = new URL(tab.url).hostname;
-      host = h.startsWith("www.") ? h.slice(4) : h;
-    } catch {
-      toast("Invalid tab URL", "err");
-      return;
-    }
-
-    if (!host) { toast("No hostname", "err"); return; }
-
-    const { whitelist, mappings } = await browser.storage.local.get({
-      whitelist: [], mappings: {},
+    if (!host) { toast("Not a web page", "err"); return; }
+    // The popup may close while the prompt is open; background.js then
+    // whitelists the site when the permission is granted.
+    const granted = await browser.permissions.request({
+      origins: [`*://${host}/*`, `*://www.${host}/*`],
     });
-
-    if (whitelist.includes(host)) {
-      toast(`${host} already added`);
-      return;
-    }
-
-    whitelist.push(host);
-    if (!mappings[host]) mappings[host] = {};
-    await browser.storage.local.set({ whitelist, mappings });
+    if (!granted) { toast("Site access not granted", "err"); return; }
+    await browser.runtime.sendMessage({ type: "add_site", hostname: host });
     toast(`Added ${host}`);
   });
 

@@ -10,6 +10,7 @@ const state = {
   themes:       {},   // { themeName: { cssVar: hexValue } }
   siteThemes:   {},   // { hostname: themeName | "" }
   siteCSS:     {},   // { themeName: css string }
+  noAccess:     new Set(),   // whitelisted hosts without granted site access
   selectedSite:  null,
   selectedTheme: null,
   activeTab:    "sites",
@@ -75,6 +76,27 @@ function populateThemeSelect(sel, current) {
     .join("");
 }
 
+// Origins requested for a whitelisted host (www. is stripped from hosts).
+function originsFor(host) {
+  return [`*://${host}/*`, `*://www.${host}/*`];
+}
+
+async function refreshAccess() {
+  const missing = new Set();
+  for (const site of state.whitelist) {
+    if (!(await browser.permissions.contains({ origins: originsFor(site) }))) missing.add(site);
+  }
+  state.noAccess = missing;
+  renderSiteList();
+}
+
+// permissions.request() has to be the first await in a click handler.
+async function grantAccess(site) {
+  const granted = await browser.permissions.request({ origins: originsFor(site) });
+  if (!granted) toast(`Site access for ${site} not granted`, "err");
+  return granted;
+}
+
 function allThemeVars() {
   const vars = new Set();
   for (const t of Object.values(state.themes))
@@ -103,12 +125,19 @@ function renderSiteList() {
     li.className = "list-item" + (site === state.selectedSite ? " selected" : "");
     li.innerHTML = `
       <span class="name">${esc(site)}</span>
+      ${state.noAccess.has(site)
+        ? `<button class="btn-ghost btn-sm" data-grant-site title="Huepr has no access to this site yet">Grant</button>`
+        : ""}
       <span class="badge">${count}v</span>
       <button class="btn-icon" data-del-site="${esc(site)}" title="Remove">✕</button>
     `;
     li.addEventListener("click", e => {
-      if (e.target.closest("[data-del-site]")) return;
+      if (e.target.closest("[data-del-site], [data-grant-site]")) return;
       selectSite(site);
+    });
+    li.querySelector("[data-grant-site]")?.addEventListener("click", e => {
+      e.stopPropagation();
+      grantAccess(site);
     });
     li.querySelector("[data-del-site]").addEventListener("click", e => {
       e.stopPropagation();
@@ -127,9 +156,10 @@ function selectSite(site) {
 async function addSite() {
   const inp = document.getElementById("new-site-input");
   const raw = inp.value.trim().toLowerCase()
-    .replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+    .replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/:\d+$/, "").replace(/^www\./, "");
   if (!raw) return;
   if (state.whitelist.includes(raw)) { toast(`${raw} already added`, "err"); return; }
+  if (!(await grantAccess(raw))) return;
   state.whitelist.push(raw);
   if (!state.mappings[raw]) state.mappings[raw] = {};
   await save();
@@ -144,6 +174,7 @@ async function removeSite(site) {
   delete state.mappings[site];
   delete state.siteCSS[site];
   await save();
+  browser.permissions.remove({ origins: originsFor(site) }).catch(() => {});
   if (state.selectedSite === site) {
     state.selectedSite = null;
     renderMappings();
@@ -546,6 +577,7 @@ async function importData(file) {
       state.selectedSite = null;
       renderSiteList();
       renderMappings();
+      refreshAccess();   // imported sites still need site access (Grant)
       toast(`Imported ${parsed.whitelist.length} sites, ${Object.keys(parsed.mappings).length} mappings`);
     }
   } catch (err) {
@@ -858,9 +890,13 @@ document.getElementById("import-file").addEventListener("change", e => {
 // Init
 // ════════════════════════════════════════════════════════════════════════════
 
+browser.permissions.onAdded.addListener(refreshAccess);
+browser.permissions.onRemoved.addListener(refreshAccess);
+
 (async () => {
   await load();
   renderSiteList();
+  refreshAccess();
   renderMappings();
   renderThemeList();
   renderThemeVars();
