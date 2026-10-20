@@ -147,7 +147,9 @@ def main() -> None:
             if stop_event.is_set():
                 break
 
-            wp_path = raw.decode(errors="replace").strip()
+            # Several quick writes can arrive in one read; the last one wins.
+            lines = [l for l in raw.decode(errors="replace").splitlines() if l.strip()]
+            wp_path = lines[-1] if lines else ""
             if wp_path:
                 dbg(f"pipe event wp_path={wp_path}")
                 send_wallpaper_change(wp_path)
