@@ -1,6 +1,6 @@
 "use strict";
 
-const DEBUG = true;
+const DEBUG = false;
 const log   = (...a) => DEBUG && console.log(...a);
 
 log('[huepr] content.js loaded', window.location.hostname);
